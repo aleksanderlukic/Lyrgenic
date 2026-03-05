@@ -34,8 +34,8 @@ export async function enqueueAnalysis(projectId: string, userId: string) {
   if (analysisQueue) {
     await analysisQueue.add("analyse", { projectId, userId });
   } else {
-    // Fire-and-forget in-process
-    runAnalysis({ projectId, userId }).catch(console.error);
+    // Run synchronously in-process (no Redis)
+    await runAnalysis({ projectId, userId });
   }
 }
 
@@ -43,6 +43,7 @@ export async function enqueueGeneration(projectId: string, userId: string) {
   if (generationQueue) {
     await generationQueue.add("generate", { projectId, userId });
   } else {
-    runGeneration({ projectId, userId }).catch(console.error);
+    // Run synchronously in-process (no Redis)
+    await runGeneration({ projectId, userId });
   }
 }

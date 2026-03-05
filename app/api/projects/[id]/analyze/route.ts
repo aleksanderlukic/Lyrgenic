@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { enqueueAnalysis } from "@/lib/queues";
 
+export const maxDuration = 120;
+
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -21,5 +23,5 @@ export async function POST(
 
   await enqueueAnalysis(id, session.user.id);
 
-  return NextResponse.json({ queued: true });
+  return NextResponse.json({ done: true });
 }

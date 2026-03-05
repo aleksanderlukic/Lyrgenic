@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: "Choose the plan that fits your workflow.",
 };
 
+const FREE_MODE = process.env.NEXT_PUBLIC_FREE_MODE === "true";
+
 export default function PricingPage() {
   return (
     <div className="min-h-screen flex flex-col">
@@ -20,11 +22,11 @@ export default function PricingPage() {
               Simple, transparent pricing
             </h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Start free. Upgrade when you need unlimited lyrics, version
-              history and the AI preview voice.
+              Start for free and create unlimited lyrics. No credit card
+              required.
             </p>
           </div>
-          <PricingCards />
+          <PricingCards freeMode={FREE_MODE} />
           <p className="text-center text-xs text-muted-foreground/50">
             All plans include unlimited project storage. Prices in USD. Cancel
             any time.

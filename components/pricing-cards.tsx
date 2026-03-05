@@ -75,7 +75,7 @@ const PLANS = [
   },
 ];
 
-export function PricingCards() {
+export function PricingCards({ freeMode = false }: { freeMode?: boolean }) {
   const [loading, setLoading] = useState<string | null>(null);
 
   async function handleCheckout(plan: string) {
@@ -93,6 +93,53 @@ export function PricingCards() {
     } finally {
       setLoading(null);
     }
+  }
+
+  if (freeMode) {
+    return (
+      <div className="max-w-md mx-auto">
+        <Card className="border-purple-500/50 glow-purple text-center">
+          <CardHeader className="pt-8">
+            <CardTitle className="text-2xl">Free</CardTitle>
+            <CardDescription>Everything you need, always free.</CardDescription>
+            <div className="flex items-end justify-center gap-1 mt-2">
+              <span className="text-5xl font-extrabold text-foreground">
+                $0
+              </span>
+              <span className="text-muted-foreground mb-1 text-sm">
+                / forever
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent className="flex-1">
+            <ul className="space-y-3 text-left">
+              {[
+                "Unlimited lyric generations",
+                "Unlimited projects",
+                "Audio file upload",
+                "Lyrics with timestamps",
+                "Section regeneration",
+                "Version history",
+                "Export as .txt",
+              ].map((f) => (
+                <li
+                  key={f}
+                  className="flex items-start gap-2 text-sm text-foreground/80"
+                >
+                  <CheckCircle2 className="h-4 w-4 text-purple-500 dark:text-purple-400 shrink-0 mt-0.5" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+          <CardFooter>
+            <Link href="/auth/sign-up" className="w-full">
+              <Button className="w-full">Get started free</Button>
+            </Link>
+          </CardFooter>
+        </Card>
+      </div>
+    );
   }
 
   return (

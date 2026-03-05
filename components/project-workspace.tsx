@@ -103,14 +103,33 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
     if (res.ok) {
       const data = await res.json();
       setProject(data);
+      return data;
     }
+    return null;
   }
 
   async function handleAnalyse() {
     setIsAnalysing(true);
-    setStatusMsg("Analysis queued…");
-    await fetch(`/api/projects/${project.id}/analyze`, { method: "POST" });
-    // Poll
+    setStatusMsg("Analysing…");
+    const res = await fetch(`/api/projects/${project.id}/analyze`, {
+      method: "POST",
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setStatusMsg(d.error ?? "Analysis failed");
+      setIsAnalysing(false);
+      return;
+    }
+    // If synchronous (no Redis), analysis is already done
+    if (d.done) {
+      const fresh = await reloadProject();
+      setStatusMsg(
+        fresh?.status === "error" ? "Analysis failed" : "Analysis complete",
+      );
+      setIsAnalysing(false);
+      return;
+    }
+    // Otherwise poll
     let attempts = 0;
     const poll = setInterval(async () => {
       attempts++;
@@ -140,13 +159,21 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
     const res = await fetch(`/api/projects/${project.id}/generate`, {
       method: "POST",
     });
+    const d = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const d = await res.json();
       setStatusMsg(d.error ?? "Error");
       setIsGenerating(false);
       return;
     }
-    // Poll
+    // If synchronous (no Redis), generation is already done
+    if (d.done) {
+      const fresh = await reloadProject();
+      setStatusMsg("Lyrics ready!");
+      setIsGenerating(false);
+      if (fresh?.lyricsVersions?.length > 0) setActivePanel("lyrics");
+      return;
+    }
+    // Otherwise poll (Redis/BullMQ queue)
     let attempts = 0;
     const poll = setInterval(async () => {
       attempts++;
@@ -213,7 +240,11 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
             size="sm"
             loading={isGenerating}
             onClick={handleGenerate}
-            disabled={project.status !== "ready" && project.status !== "done"}
+            disabled={
+              project.status !== "ready" &&
+              project.status !== "done" &&
+              project.status !== "error"
+            }
             className="gap-1.5"
           >
             <Wand2 className="h-3.5 w-3.5" />

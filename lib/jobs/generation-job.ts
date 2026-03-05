@@ -67,9 +67,10 @@ export async function runGeneration(data: {
     });
   } catch (err) {
     console.error("[generation-job] Error:", err);
+    // Reset to "ready" so the user can retry (e.g. after adding an API key)
     await prisma.project.update({
       where: { id: projectId },
-      data: { status: "error" },
+      data: { status: "ready" },
     });
   }
 }

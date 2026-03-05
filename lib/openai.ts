@@ -1,19 +1,27 @@
-// lib/openai.ts – OpenAI completion helper + structured lyrics generator
+// lib/openai.ts – OpenAI/Groq completion helper + structured lyrics generator
 import { z } from "zod";
 
-/** Shared fetch wrapper for OpenAI chat completions */
+// Use Groq if GROQ_API_KEY is set, otherwise OpenAI
+const isGroq = !!process.env.GROQ_API_KEY;
+const API_URL = isGroq
+  ? "https://api.groq.com/openai/v1/chat/completions"
+  : "https://api.openai.com/v1/chat/completions";
+const API_KEY = isGroq ? process.env.GROQ_API_KEY : process.env.OPENAI_API_KEY;
+const DEFAULT_MODEL = isGroq ? "llama-3.3-70b-versatile" : "gpt-4o";
+
+/** Shared fetch wrapper for OpenAI-compatible chat completions */
 async function chatCompletion(
   messages: { role: "system" | "user" | "assistant"; content: string }[],
   options?: { temperature?: number; max_tokens?: number },
 ) {
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch(API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      Authorization: `Bearer ${API_KEY}`,
     },
     body: JSON.stringify({
-      model: process.env.OPENAI_MODEL ?? "gpt-4o",
+      model: process.env.OPENAI_MODEL ?? DEFAULT_MODEL,
       messages,
       temperature: options?.temperature ?? 0.8,
       max_tokens: options?.max_tokens ?? 3000,
@@ -23,7 +31,7 @@ async function chatCompletion(
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`OpenAI error ${response.status}: ${err}`);
+    throw new Error(`LLM error ${response.status}: ${err}`);
   }
   const data = await response.json();
   return {

@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { enqueueGeneration } from "@/lib/queues";
 import { checkRateLimit } from "@/lib/rate-limit";
 
+export const maxDuration = 120; // allow up to 2 min for OpenAI
+
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -18,8 +20,8 @@ export async function POST(
   if (!user)
     return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  // Enforce free plan daily limit
-  if (user.plan === "free") {
+  // Enforce free plan daily limit (skipped in FREE_MODE)
+  if (user.plan === "free" && process.env.FREE_MODE !== "true") {
     const LIMIT = Number(process.env.FREE_GENERATIONS_PER_DAY ?? 5);
     const limit = await checkRateLimit({
       key: `rl:lyrics:${userId}`,
@@ -36,13 +38,28 @@ export async function POST(
     }
   }
 
+  // Fail fast if no LLM key is configured
+  if (!process.env.OPENAI_API_KEY && !process.env.GROQ_API_KEY) {
+    return NextResponse.json(
+      {
+        error:
+          "No AI API key configured. Add GROQ_API_KEY (free) or OPENAI_API_KEY to your .env.local file.",
+      },
+      { status: 503 },
+    );
+  }
+
   const { id } = await params;
   const project = await prisma.project.findUnique({ where: { id } });
   if (!project)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (project.userId !== userId)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  if (project.status !== "ready" && project.status !== "done") {
+  if (
+    project.status !== "ready" &&
+    project.status !== "done" &&
+    project.status !== "error"
+  ) {
     return NextResponse.json(
       { error: "Project must be analysed before generating lyrics" },
       { status: 409 },
@@ -51,5 +68,5 @@ export async function POST(
 
   await enqueueGeneration(id, userId);
 
-  return NextResponse.json({ queued: true });
+  return NextResponse.json({ done: true });
 }
