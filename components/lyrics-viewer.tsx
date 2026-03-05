@@ -45,7 +45,12 @@ export function LyricsViewer({ lyricsJson, currentTimeSec = 0 }: Props) {
     );
   }
 
-  const { title, songBrief, lyrics, performanceNotes } = lyricsJson;
+  // Handle legacy format where lyricsJson was stored as raw LyricsSection[]
+  const normalized: LyricsOutput = Array.isArray(lyricsJson)
+    ? { lyrics: lyricsJson as unknown as LyricsSection[] }
+    : lyricsJson;
+
+  const { title, songBrief, lyrics, performanceNotes } = normalized;
 
   // Flatten all lines with their times to determine active line
   const allLines = lyrics.flatMap((s) => s.lines);

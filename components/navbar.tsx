@@ -24,12 +24,7 @@ export function Navbar() {
 
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
-          <Link
-            href="/pricing"
-            className="hover:text-foreground transition-colors"
-          >
-            Pricing
-          </Link>
+          <span className="text-purple-400 font-medium">Free</span>
           {session && (
             <Link
               href="/app"
@@ -64,7 +59,7 @@ export function Navbar() {
                 </Button>
               </Link>
               <Link href="/auth/sign-up">
-                <Button size="sm">Try free</Button>
+                <Button size="sm">Get started free</Button>
               </Link>
             </>
           )}
@@ -98,13 +93,9 @@ export function Navbar() {
       {/* Mobile menu */}
       {open && (
         <div className="md:hidden border-t border-border bg-background px-4 py-4 space-y-3">
-          <Link
-            href="/pricing"
-            className="block text-foreground/70 hover:text-foreground py-1"
-            onClick={() => setOpen(false)}
-          >
-            Pricing
-          </Link>
+          <span className="block text-purple-400 font-medium py-1">
+            Free forever
+          </span>
           {session ? (
             <>
               <Link
@@ -132,10 +123,10 @@ export function Navbar() {
               </Link>
               <Link
                 href="/auth/sign-up"
-                className="block text-foreground/70 hover:text-foreground py-1"
+                className="block text-purple-400 font-medium hover:text-purple-300 py-1"
                 onClick={() => setOpen(false)}
               >
-                Sign up
+                Get started free
               </Link>
             </>
           )}

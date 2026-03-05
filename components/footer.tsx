@@ -31,7 +31,7 @@ export function Footer() {
                   href="/pricing"
                   className="hover:text-foreground transition-colors"
                 >
-                  Pricing
+                  Free
                 </Link>
                 <Link
                   href="/app"

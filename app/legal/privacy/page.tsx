@@ -36,11 +36,6 @@ export default function PrivacyPage() {
             logs, generation counts, and error logs used to operate and improve
             the Service.
           </li>
-          <li>
-            <strong className="text-foreground/80">Billing data</strong>:
-            handled entirely by Stripe. We do not store your payment card
-            details.
-          </li>
         </ul>
       </section>
 
@@ -50,12 +45,8 @@ export default function PrivacyPage() {
         </h2>
         <ul className="list-disc list-inside space-y-1 ml-4">
           <li>To provide, operate, and improve the Service</li>
-          <li>To process payments and manage subscriptions</li>
           <li>To detect and prevent abuse or fraudulent activity</li>
-          <li>
-            To send transactional emails (account verification, billing
-            receipts)
-          </li>
+          <li>To send transactional emails (account verification)</li>
           <li>To respond to support requests</li>
         </ul>
         <p>We do not sell your personal information to third parties.</p>
@@ -67,17 +58,17 @@ export default function PrivacyPage() {
         </h2>
         <p>
           When you request lyrics generation, your project parameters (genre,
-          vibe, topic, etc.) and audio analysis results are sent to
-          OpenAI&apos;s API to generate lyric suggestions. Audio files are{" "}
+          vibe, topic, etc.) and audio analysis results are sent to Groq&apos;s
+          API to generate lyric suggestions. Audio files are{" "}
           <strong className="text-foreground/80">not</strong> transmitted to
-          OpenAI. Please review{" "}
+          Groq. Please review{" "}
           <a
-            href="https://openai.com/privacy"
+            href="https://groq.com/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
             className="text-purple-400 hover:underline"
           >
-            OpenAI&apos;s Privacy Policy
+            Groq&apos;s Privacy Policy
           </a>{" "}
           for details on how they handle API data.
         </p>
@@ -104,11 +95,7 @@ export default function PrivacyPage() {
         </p>
         <ul className="list-disc list-inside space-y-1 ml-4">
           <li>
-            <strong className="text-foreground/80">Stripe</strong> — payment
-            processing
-          </li>
-          <li>
-            <strong className="text-foreground/80">OpenAI</strong> — lyrics
+            <strong className="text-foreground/80">Groq</strong> — lyrics
             generation AI
           </li>
           <li>

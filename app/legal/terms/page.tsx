@@ -93,12 +93,12 @@ export default function TermsPage() {
 
       <section className="space-y-3">
         <h2 className="text-xl font-semibold text-foreground">
-          6. Subscriptions &amp; Billing
+          6. Free Service
         </h2>
         <p>
-          Paid plans are billed on a monthly basis via Stripe. You may cancel at
-          any time; cancellation takes effect at the end of the current billing
-          period. No refunds are provided for partial months.
+          Lyrgenic is currently provided free of charge with no subscription or
+          payment required. We reserve the right to introduce paid features in
+          the future, with advance notice to existing users.
         </p>
       </section>
 

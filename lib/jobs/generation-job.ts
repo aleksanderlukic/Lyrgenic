@@ -46,7 +46,12 @@ export async function runGeneration(data: {
         title: output.title,
         songBrief: output.songBrief,
         structureJson: output.structure as any,
-        lyricsJson: output.lyrics as any,
+        lyricsJson: {
+          title: output.title,
+          songBrief: output.songBrief,
+          lyrics: output.lyrics,
+          performanceNotes: output.performanceNotes ?? "",
+        } as any,
         performanceNotes: output.performanceNotes ?? "",
       },
     });

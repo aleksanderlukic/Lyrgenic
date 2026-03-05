@@ -91,18 +91,13 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/auth/sign-up">
               <Button size="lg" className="w-full sm:w-auto gap-2">
-                Try free <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/pricing">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                See pricing
+                Get started free <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
           </div>
 
           <p className="text-xs text-muted-foreground/50">
-            No credit card required · 5 free generations per day
+            No credit card required · Completely free, forever
           </p>
         </div>
       </section>
@@ -215,7 +210,7 @@ export default function Home() {
         <div className="max-w-2xl mx-auto text-center space-y-6">
           <h2 className="text-4xl font-bold">Start writing your next hit</h2>
           <p className="text-muted-foreground">
-            5 free generations every day. No credit card needed.
+            Completely free, forever. No credit card needed.
           </p>
           <Link href="/auth/sign-up">
             <Button size="lg" className="gap-2">
