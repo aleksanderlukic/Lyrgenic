@@ -403,6 +403,18 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
                   }));
                   setActivePanel("lyrics");
                 }}
+                onDelete={(versionId) => {
+                  setProject((p) => {
+                    const remaining = (
+                      p.lyricsVersions as LyricsVersion[]
+                    ).filter((x) => x.id !== versionId);
+                    return {
+                      ...p,
+                      lyricsVersions: remaining,
+                      status: remaining.length === 0 ? "ready" : p.status,
+                    };
+                  });
+                }}
               />
             )}
             {activePanel === "export" && latestVersion && (

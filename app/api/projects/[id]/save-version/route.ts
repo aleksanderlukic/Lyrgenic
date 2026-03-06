@@ -6,11 +6,12 @@ import { LyricsOutputSchema } from "@/lib/openai";
 import { z } from "zod";
 
 const Schema = z.object({
-  title: z.string(),
-  songBrief: z.string(),
-  structureJson: z.array(z.any()),
-  lyricsJson: z.array(z.any()),
-  performanceNotes: z.string().optional(),
+  lyricsJson: z.object({
+    title: z.string().optional(),
+    songBrief: z.string().optional(),
+    lyrics: z.array(z.any()),
+    performanceNotes: z.string().optional(),
+  }),
 });
 
 export async function POST(
