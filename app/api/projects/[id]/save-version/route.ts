@@ -46,11 +46,11 @@ export async function POST(
       projectId: id,
       versionNumber: versionCount + 1,
       source: "user",
-      title: result.data.title,
-      songBrief: result.data.songBrief,
-      structureJson: result.data.structureJson as any,
+      title: result.data.lyricsJson.title ?? "",
+      songBrief: result.data.lyricsJson.songBrief ?? "",
+      structureJson: [] as any,
       lyricsJson: result.data.lyricsJson as any,
-      performanceNotes: result.data.performanceNotes ?? "",
+      performanceNotes: result.data.lyricsJson.performanceNotes ?? "",
     },
   });
 
