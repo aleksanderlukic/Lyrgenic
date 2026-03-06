@@ -37,7 +37,7 @@ interface Props {
 
 export function LyricsEditor({ projectId, version, onSaved }: Props) {
   const { data: session } = useSession();
-  const isPro = (session?.user as { plan?: string })?.plan !== "free";
+  const isPro = true; // FREE_MODE: all features available
 
   const [sections, setSections] = useState<LyricsSection[]>([]);
   const [savingSection, setSavingSection] = useState<number | null>(null);
@@ -65,7 +65,7 @@ export function LyricsEditor({ projectId, version, onSaved }: Props) {
   };
 
   const regenSection = async (sectionIndex: number) => {
-    if (!version || !isPro) return;
+    if (!version) return;
     const sectionName = sections[sectionIndex].section;
     setSavingSection(sectionIndex);
     try {
@@ -119,12 +119,6 @@ export function LyricsEditor({ projectId, version, onSaved }: Props) {
 
   return (
     <div className="space-y-5">
-      {!isPro && (
-        <div className="rounded-lg bg-yellow-900/30 border border-yellow-700/40 px-3 py-2 text-xs text-yellow-400">
-          "Regenerate section" requires a Pro or Creator plan.
-        </div>
-      )}
-
       {sections.map((section, si) => (
         <div key={si} className="space-y-2">
           <div className="flex items-center justify-between">
@@ -134,7 +128,7 @@ export function LyricsEditor({ projectId, version, onSaved }: Props) {
             <Button
               size="sm"
               variant="ghost"
-              disabled={!isPro || savingSection === si}
+              disabled={savingSection === si}
               onClick={() => regenSection(si)}
             >
               {savingSection === si ? (

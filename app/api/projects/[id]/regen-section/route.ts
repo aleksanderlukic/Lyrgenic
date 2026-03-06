@@ -18,12 +18,6 @@ export async function POST(
   const userId = session.user.id;
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (user.plan === "free") {
-    return NextResponse.json(
-      { error: "Section regeneration requires Pro plan" },
-      { status: 403 },
-    );
-  }
 
   const { id } = await params;
   const project = await prisma.project.findUnique({
@@ -67,9 +61,12 @@ export async function POST(
   });
 
   // Merge new section into existing lyrics
-  const existingLyrics = latest.lyricsJson as LyricsOutput["lyrics"];
+  const existingLyricsObj = latest.lyricsJson as any;
+  const existingLyricsArr: LyricsOutput["lyrics"] = Array.isArray(existingLyricsObj)
+    ? existingLyricsObj
+    : existingLyricsObj?.lyrics ?? [];
   const newSection = output.lyrics.find((s) => s.section === sectionName);
-  const mergedLyrics = existingLyrics.map((s) =>
+  const mergedLyrics = existingLyricsArr.map((s) =>
     s.section === sectionName && newSection ? newSection : s,
   );
 
@@ -85,7 +82,12 @@ export async function POST(
       title: latest.title,
       songBrief: latest.songBrief,
       structureJson: (latest.structureJson ?? undefined) as any,
-      lyricsJson: mergedLyrics as any,
+      lyricsJson: {
+        title: latest.title ?? "",
+        songBrief: latest.songBrief ?? "",
+        lyrics: mergedLyrics,
+        performanceNotes: latest.performanceNotes ?? "",
+      } as any,
       performanceNotes: latest.performanceNotes ?? "",
     },
   });
@@ -94,5 +96,5 @@ export async function POST(
     data: { userId, projectId: id, type: "section_regen", tokens, costUsd },
   });
 
-  return NextResponse.json(newVersion);
+  return NextResponse.json({ version: newVersion });
 }
