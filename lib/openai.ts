@@ -21,7 +21,9 @@ async function chatCompletion(
       Authorization: `Bearer ${API_KEY}`,
     },
     body: JSON.stringify({
-      model: process.env.OPENAI_MODEL ?? DEFAULT_MODEL,
+      model: isGroq
+        ? DEFAULT_MODEL
+        : (process.env.OPENAI_MODEL ?? DEFAULT_MODEL),
       messages,
       temperature: options?.temperature ?? 0.8,
       max_tokens: options?.max_tokens ?? 3000,
