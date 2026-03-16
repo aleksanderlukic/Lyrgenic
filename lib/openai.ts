@@ -184,3 +184,43 @@ Return ONLY valid JSON matching the schema.`;
 
   return { output, tokens: usage.total_tokens, costUsd };
 }
+
+// ─── Single-line regeneration ─────────────────────────────────────────
+
+export async function regenerateLine(opts: {
+  genre?: string;
+  vibe?: string;
+  language?: string;
+  isExplicit?: boolean;
+  rhyme?: boolean;
+  sectionName: string;
+  linesBefore: string[];
+  linesAfter: string[];
+  currentLine: string;
+}): Promise<string> {
+  const context = [
+    ...opts.linesBefore.map((l) => `  ${l}`),
+    `> [REPLACE THIS LINE]: ${opts.currentLine}`,
+    ...opts.linesAfter.map((l) => `  ${l}`),
+  ].join("\n");
+
+  const prompt = `You are a professional songwriter. Rewrite ONLY the marked line in the ${opts.sectionName} section.
+
+Context (surrounding lines):
+${context}
+
+Style: Genre=${opts.genre ?? "any"}, Vibe=${opts.vibe ?? "any"}, Language=${opts.language ?? "English"}, Clean=${!opts.isExplicit}, Rhyme=${opts.rhyme ? "yes" : "no"}.
+
+Rules:
+- Write ORIGINAL lyrics only.
+- The new line must fit naturally with the surrounding lines in rhythm, rhyme (if enabled), and meaning.
+- Return ONLY valid JSON: { "line": "your new line here" }`;
+
+  const { content } = await chatCompletion(
+    [{ role: "user", content: prompt }],
+    { temperature: 0.9, max_tokens: 100 },
+  );
+  const parsed = JSON.parse(content);
+  if (typeof parsed?.line !== "string") throw new Error("Invalid response");
+  return parsed.line;
+}

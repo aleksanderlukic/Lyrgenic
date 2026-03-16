@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Save, Loader2, Plus, Trash2 } from "lucide-react";
+import { RefreshCw, Save, Loader2, Plus, Trash2, Wand2 } from "lucide-react";
 
 interface LyricLine {
   timeSec: number;
@@ -89,6 +89,9 @@ export function LyricsEditor({ projectId, version, onSaved }: Props) {
 
   const [sections, setSections] = useState<LyricsSection[]>([]);
   const [savingSection, setSavingSection] = useState<number | null>(null);
+  const [regenLine, setRegenLine] = useState<{ si: number; li: number } | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
   const [regenError, setRegenError] = useState<string | null>(null);
 
@@ -104,7 +107,10 @@ export function LyricsEditor({ projectId, version, onSaved }: Props) {
     setSections((prev) =>
       prev.map((s, i) =>
         i === si
-          ? { ...s, lines: s.lines.map((l, j) => (j === li ? { ...l, text } : l)) }
+          ? {
+              ...s,
+              lines: s.lines.map((l, j) => (j === li ? { ...l, text } : l)),
+            }
           : s,
       ),
     );
@@ -134,6 +140,45 @@ export function LyricsEditor({ projectId, version, onSaved }: Props) {
         return { ...s, lines: s.lines.filter((_, j) => j !== li) };
       }),
     );
+  };
+
+  const regenSingleLine = async (si: number, li: number) => {
+    if (!version) return;
+    setRegenLine({ si, li });
+    setRegenError(null);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/regen-line`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          versionId: version.id,
+          sectionName: sections[si].section,
+          lineIndex: li,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(body.error ?? "Request failed");
+      }
+      const { line } = await res.json();
+      setSections((prev) =>
+        prev.map((s, i) =>
+          i === si
+            ? {
+                ...s,
+                lines: s.lines.map((l, j) =>
+                  j === li ? { ...l, text: line } : l,
+                ),
+              }
+            : s,
+        ),
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setRegenError(msg);
+    } finally {
+      setRegenLine(null);
+    }
   };
 
   const regenSection = async (sectionIndex: number) => {
@@ -195,7 +240,12 @@ export function LyricsEditor({ projectId, version, onSaved }: Props) {
       {regenError && (
         <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive flex justify-between items-center gap-2">
           <span>Regen failed: {regenError}</span>
-          <button onClick={() => setRegenError(null)} className="text-destructive/60 hover:text-destructive text-xs shrink-0">✕</button>
+          <button
+            onClick={() => setRegenError(null)}
+            className="text-destructive/60 hover:text-destructive text-xs shrink-0"
+          >
+            ✕
+          </button>
         </div>
       )}
       {sections.map((section, si) => (
@@ -241,6 +291,18 @@ export function LyricsEditor({ projectId, version, onSaved }: Props) {
               </div>
 
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pt-1 shrink-0">
+                <button
+                  onClick={() => regenSingleLine(si, li)}
+                  disabled={regenLine !== null}
+                  className="text-muted-foreground hover:text-purple-400 p-0.5 disabled:opacity-40"
+                  title="Regenerate this line"
+                >
+                  {regenLine?.si === si && regenLine?.li === li ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-3.5 w-3.5" />
+                  )}
+                </button>
                 <button
                   onClick={() => insertLineAfter(si, li)}
                   className="text-muted-foreground hover:text-foreground p-0.5"
