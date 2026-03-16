@@ -19,7 +19,7 @@ export default function SignUpPage() {
           </Link>
           <h1 className="text-2xl font-bold">Create your account</h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            5 free generations every day
+            Free & unlimited generations
           </p>
         </div>
         <SignUpForm />
