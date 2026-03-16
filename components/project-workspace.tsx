@@ -21,6 +21,9 @@ import {
   ChevronDown,
   ChevronUp,
   Music2,
+  Play,
+  Pause,
+  Square,
 } from "lucide-react";
 
 interface LyricsLine {
@@ -95,6 +98,9 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isTogglingRhyme, setIsTogglingRhyme] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [previewState, setPreviewState] = useState<
+    "idle" | "playing" | "paused"
+  >("idle");
   const [currentTimeSec, setCurrentTimeSec] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
@@ -213,6 +219,68 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
       setProject((p) => ({ ...p, rhyme: updated.rhyme }));
     }
     setIsTogglingRhyme(false);
+  }
+
+  /** Flatten all lyrics lines from the latest version into a single string */
+  function getLyricsText(): string | null {
+    const lj = latestVersion?.lyricsJson as any;
+    if (!lj) return null;
+    const sections: any[] = Array.isArray(lj) ? lj : (lj.lyrics ?? []);
+    return sections
+      .flatMap((s: any) => (s.lines ?? []).map((l: any) => l.text ?? ""))
+      .filter(Boolean)
+      .join(" ... ");
+  }
+
+  function handlePreviewPlay() {
+    if (!window.speechSynthesis) {
+      setStatusMsg("Your browser does not support speech synthesis.");
+      return;
+    }
+    const text = getLyricsText();
+    if (!text) {
+      setStatusMsg("Generate lyrics first to preview the robot voice.");
+      return;
+    }
+    // Resume if paused
+    if (previewState === "paused") {
+      window.speechSynthesis.resume();
+      setPreviewState("playing");
+      return;
+    }
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 0.85;
+    utter.pitch = 0.1; // very deep/robotic
+    utter.volume = 1;
+    // Pick a low-quality / robotic-sounding voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const robotic = voices.find(
+      (v) =>
+        v.name.toLowerCase().includes("google uk english male") ||
+        v.name.toLowerCase().includes("microsoft david") ||
+        v.name.toLowerCase().includes("microsoft mark") ||
+        !v.localService, // remote/cloud voices tend to sound more synthetic
+    );
+    if (robotic) utter.voice = robotic;
+    utter.onstart = () => setPreviewState("playing");
+    utter.onend = () => setPreviewState("idle");
+    utter.onerror = () => setPreviewState("idle");
+    window.speechSynthesis.speak(utter);
+    setPreviewState("playing");
+  }
+
+  function handlePreviewPause() {
+    if (window.speechSynthesis?.speaking && !window.speechSynthesis.paused) {
+      window.speechSynthesis.pause();
+      setPreviewState("paused");
+    }
+  }
+
+  function handlePreviewStop() {
+    window.speechSynthesis?.cancel();
+    setPreviewState("idle");
   }
 
   async function handlePreview() {
@@ -363,16 +431,52 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
             )}
           </div>
 
-          {/* Preview voice (feature flag) */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full gap-2"
-            loading={isPreviewLoading}
-            onClick={handlePreview}
-          >
-            <Mic2 className="h-4 w-4" /> Robot voice preview
-          </Button>
+          {/* Robot Voice Preview */}
+          <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <Mic2 className="h-4 w-4 text-purple-400" />
+              Robot voice preview
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {previewState === "playing"
+                ? "Playing…"
+                : previewState === "paused"
+                  ? "Paused"
+                  : latestVersion
+                    ? "Listen to your lyrics read by a synthetic voice."
+                    : "Generate lyrics first to enable preview."}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant={previewState === "playing" ? "default" : "outline"}
+                className="flex-1 gap-1.5"
+                onClick={handlePreviewPlay}
+                disabled={!latestVersion}
+              >
+                <Play className="h-3.5 w-3.5" />
+                {previewState === "paused" ? "Resume" : "Play"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 gap-1.5"
+                onClick={handlePreviewPause}
+                disabled={previewState !== "playing"}
+              >
+                <Pause className="h-3.5 w-3.5" /> Pause
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 px-3"
+                onClick={handlePreviewStop}
+                disabled={previewState === "idle"}
+              >
+                <Square className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* ── Right panel ─────────────────────────────────────────── */}
