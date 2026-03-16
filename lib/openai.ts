@@ -185,7 +185,7 @@ Return ONLY valid JSON matching the schema.`;
   return { output, tokens: usage.total_tokens, costUsd };
 }
 
-// ─── Single-line regeneration ─────────────────────────────────────────
+// ─── Single-line regeneration (returns 3 alternatives) ───────────────
 
 export async function regenerateLine(opts: {
   genre?: string;
@@ -197,7 +197,7 @@ export async function regenerateLine(opts: {
   linesBefore: string[];
   linesAfter: string[];
   currentLine: string;
-}): Promise<string> {
+}): Promise<string[]> {
   const context = [
     ...opts.linesBefore.map((l) => `  ${l}`),
     `> [REPLACE THIS LINE]: ${opts.currentLine}`,
@@ -213,14 +213,72 @@ Style: Genre=${opts.genre ?? "any"}, Vibe=${opts.vibe ?? "any"}, Language=${opts
 
 Rules:
 - Write ORIGINAL lyrics only.
-- The new line must fit naturally with the surrounding lines in rhythm, rhyme (if enabled), and meaning.
-- Return ONLY valid JSON: { "line": "your new line here" }`;
+- Each option must fit naturally with the surrounding lines in rhythm, rhyme (if enabled), and meaning.
+- Provide exactly 3 distinct alternatives with different creative approaches.
+- Return ONLY valid JSON: { "lines": ["option 1", "option 2", "option 3"] }`;
 
   const { content } = await chatCompletion(
     [{ role: "user", content: prompt }],
-    { temperature: 0.9, max_tokens: 100 },
+    { temperature: 0.9, max_tokens: 200 },
   );
   const parsed = JSON.parse(content);
-  if (typeof parsed?.line !== "string") throw new Error("Invalid response");
-  return parsed.line;
+  if (!Array.isArray(parsed?.lines) || parsed.lines.length < 1)
+    throw new Error("Invalid response");
+  return (parsed.lines as string[]).slice(0, 3);
+}
+
+// ─── Rhyme suggestions ────────────────────────────────────────────────
+
+export async function suggestRhymes(opts: {
+  word: string;
+  language?: string;
+}): Promise<string[]> {
+  const prompt = `Generate 8 words that rhyme with "${opts.word}" in ${opts.language ?? "English"}.
+Rules:
+- Only real rhyming words (the ending sound must clearly match).
+- Keep them natural and usable in song lyrics.
+- Return ONLY valid JSON: { "rhymes": ["word1", "word2", "word3", "word4", "word5", "word6", "word7", "word8"] }`;
+
+  const { content } = await chatCompletion(
+    [{ role: "user", content: prompt }],
+    { temperature: 0.7, max_tokens: 120 },
+  );
+  const parsed = JSON.parse(content);
+  if (!Array.isArray(parsed?.rhymes)) throw new Error("Invalid response");
+  return (parsed.rhymes as string[]).slice(0, 8);
+}
+
+// ─── Song inspiration generator ───────────────────────────────────────
+
+export async function generateInspiration(opts: {
+  genre?: string;
+  vibe?: string;
+  language?: string;
+  mood?: string;
+}): Promise<{ topics: string[]; hooks: string[] }> {
+  const prompt = `You are a creative songwriting coach. Generate song inspiration.
+
+Parameters:
+- Genre: ${opts.genre ?? "any"}
+- Vibe: ${opts.vibe ?? "any"}
+- Language: ${opts.language ?? "English"}
+${opts.mood ? `- Current mood/feeling: ${opts.mood}` : ""}
+
+Return ONLY valid JSON:
+{
+  "topics": ["5 interesting story or topic ideas for a song, each 1 sentence"],
+  "hooks": ["5 catchy opening lines or hook phrases ready to use in lyrics"]
+}`;
+
+  const { content } = await chatCompletion(
+    [{ role: "user", content: prompt }],
+    { temperature: 0.9, max_tokens: 500 },
+  );
+  const parsed = JSON.parse(content);
+  if (!Array.isArray(parsed?.topics) || !Array.isArray(parsed?.hooks))
+    throw new Error("Invalid response");
+  return {
+    topics: (parsed.topics as string[]).slice(0, 5),
+    hooks: (parsed.hooks as string[]).slice(0, 5),
+  };
 }

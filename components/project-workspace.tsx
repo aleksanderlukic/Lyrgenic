@@ -25,6 +25,8 @@ import {
   Pause,
   Square,
   Volume2,
+  Lightbulb,
+  X,
 } from "lucide-react";
 
 interface LyricsLine {
@@ -102,6 +104,13 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
   const [beatOpen, setBeatOpen] = useState(false);
   const [beatFileUrl, setBeatFileUrl] = useState<string | null>(null);
   const [beatFileLoading, setBeatFileLoading] = useState(false);
+  const [inspirationOpen, setInspirationOpen] = useState(false);
+  const [inspirationLoading, setInspirationLoading] = useState(false);
+  const [inspirationData, setInspirationData] = useState<{
+    topics: string[];
+    hooks: string[];
+  } | null>(null);
+  const [inspirationMood, setInspirationMood] = useState("");
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [previewState, setPreviewState] = useState<
     "idle" | "playing" | "paused"
@@ -431,6 +440,24 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
     return m?.[1] ?? null;
   }
 
+  async function handleInspire() {
+    setInspirationLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/inspire`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mood: inspirationMood || undefined }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setInspirationData(data);
+        setInspirationOpen(true);
+      }
+    } finally {
+      setInspirationLoading(false);
+    }
+  }
+
   async function handleToggleBeat() {
     if (beatOpen) {
       setBeatOpen(false);
@@ -482,6 +509,20 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            loading={inspirationLoading}
+            onClick={handleInspire}
+            className={`gap-1.5 transition-colors ${
+              inspirationOpen
+                ? "border-yellow-500 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20"
+                : ""
+            }`}
+          >
+            <Lightbulb className="h-3.5 w-3.5" />
+            Inspiration
+          </Button>
           {(project.sourceType === "youtube" && project.youtubeUrl) ||
           project.audioOriginalKey ? (
             <Button
@@ -545,6 +586,76 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
           </Button>
         </div>
       </div>
+
+      {inspirationOpen && inspirationData && (
+        <div className="mb-4 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-4 space-y-4">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-yellow-400 shrink-0" />
+              <span className="text-sm font-medium text-yellow-400">
+                Song Inspiration
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={inspirationMood}
+                onChange={(e) => setInspirationMood(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleInspire()}
+                placeholder="Mood / feeling…"
+                className="text-xs bg-background border border-border rounded px-2 py-1 w-32 outline-none focus:border-yellow-500/50"
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                loading={inspirationLoading}
+                onClick={handleInspire}
+                className="h-7 px-2 text-xs"
+              >
+                Refresh
+              </Button>
+              <button
+                onClick={() => setInspirationOpen(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Topic ideas
+              </p>
+              <ul className="space-y-1.5">
+                {inspirationData.topics.map((t, i) => (
+                  <li key={i} className="text-sm text-foreground/80 flex gap-2">
+                    <span className="text-yellow-500/60 shrink-0">
+                      {i + 1}.
+                    </span>
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Hook suggestions
+              </p>
+              <ul className="space-y-1.5">
+                {inspirationData.hooks.map((h, i) => (
+                  <li
+                    key={i}
+                    className="text-sm italic text-foreground/80 border-l-2 border-yellow-500/30 pl-2"
+                  >
+                    “{h}”
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       {beatOpen && (
         <div className="mb-4 rounded-lg border border-border bg-card p-3">
@@ -762,6 +873,7 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
               <LyricsEditor
                 projectId={project.id}
                 version={latestVersion}
+                language={project.language}
                 onSaved={(v) => {
                   setProject((p) => ({
                     ...p,

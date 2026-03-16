@@ -60,5 +60,5 @@ export async function POST(
     currentLine,
   });
 
-  return NextResponse.json({ line: newText });
+  return NextResponse.json({ lines: newText });
 }

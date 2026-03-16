@@ -3,7 +3,18 @@
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Save, Loader2, Plus, Trash2, Wand2 } from "lucide-react";
+import {
+  RefreshCw,
+  Save,
+  Loader2,
+  Plus,
+  Trash2,
+  Wand2,
+  Hash,
+  Mic2,
+  X,
+  Check,
+} from "lucide-react";
 
 interface LyricLine {
   timeSec: number;
@@ -31,6 +42,7 @@ interface LyricsVersion {
 interface Props {
   projectId: string;
   version: LyricsVersion | null;
+  language?: string;
   onSaved: (version: LyricsVersion) => void;
 }
 
@@ -84,7 +96,17 @@ function AutoTextarea({
   );
 }
 
-export function LyricsEditor({ projectId, version, onSaved }: Props) {
+/** Approximate syllable count (supports most European languages) */
+function countSyllables(text: string): number {
+  if (!text.trim()) return 0;
+  const lower = text.toLowerCase();
+  const matches = lower.match(/[aeiouyåäöéèêëàâîïôùûüœæø]+/g);
+  let n = matches ? matches.length : 1;
+  if (lower.endsWith("e") && !lower.endsWith("le") && n > 1) n--;
+  return Math.max(1, n);
+}
+
+export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
   const { data: session } = useSession();
 
   const [sections, setSections] = useState<LyricsSection[]>([]);
@@ -92,18 +114,80 @@ export function LyricsEditor({ projectId, version, onSaved }: Props) {
   const [regenLine, setRegenLine] = useState<{ si: number; li: number } | null>(
     null,
   );
+  const [altPicker, setAltPicker] = useState<{
+    si: number;
+    li: number;
+    options: string[];
+  } | null>(null);
+  const [rhymesData, setRhymesData] = useState<{
+    si: number;
+    li: number;
+    words: string[];
+  } | null>(null);
+  const [rhymeLoading, setRhymeLoading] = useState<{
+    si: number;
+    li: number;
+  } | null>(null);
+  const [showSyllables, setShowSyllables] = useState(false);
   const [saving, setSaving] = useState(false);
   const [regenError, setRegenError] = useState<string | null>(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<
+    "idle" | "saving" | "saved"
+  >("idle");
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dirtyRef = useRef(false);
 
   useEffect(() => {
     if (version?.lyricsJson?.lyrics) {
+      dirtyRef.current = false;
       setSections(
         version.lyricsJson.lyrics.map((s) => ({ ...s, lines: [...s.lines] })),
       );
     }
   }, [version]);
 
+  // Auto-save: debounce 4 seconds after user edits
+  useEffect(() => {
+    if (!dirtyRef.current || !version || !sections.length) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    const capturedVersion = version;
+    const capturedSections = sections;
+    autoSaveTimerRef.current = setTimeout(async () => {
+      dirtyRef.current = false;
+      setAutoSaveStatus("saving");
+      try {
+        const body = {
+          lyricsJson: {
+            ...capturedVersion.lyricsJson,
+            lyrics: capturedSections,
+          },
+        };
+        const res = await fetch(`/api/projects/${projectId}/save-version`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          const saved = await res.json();
+          onSaved(saved);
+          setAutoSaveStatus("saved");
+          setTimeout(() => setAutoSaveStatus("idle"), 2000);
+        } else {
+          setAutoSaveStatus("idle");
+        }
+      } catch {
+        setAutoSaveStatus("idle");
+      }
+    }, 4000);
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [sections]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleLineChange = (si: number, li: number, text: string) => {
+    dirtyRef.current = true;
+    setAltPicker(null);
+    setRhymesData(null);
     setSections((prev) =>
       prev.map((s, i) =>
         i === si
@@ -117,6 +201,7 @@ export function LyricsEditor({ projectId, version, onSaved }: Props) {
   };
 
   const insertLineAfter = (si: number, li: number) => {
+    dirtyRef.current = true;
     setSections((prev) =>
       prev.map((s, i) => {
         if (i !== si) return s;
@@ -133,6 +218,7 @@ export function LyricsEditor({ projectId, version, onSaved }: Props) {
   };
 
   const deleteLine = (si: number, li: number) => {
+    dirtyRef.current = true;
     setSections((prev) =>
       prev.map((s, i) => {
         if (i !== si) return s;
@@ -142,9 +228,79 @@ export function LyricsEditor({ projectId, version, onSaved }: Props) {
     );
   };
 
+  const applyAlt = (si: number, li: number, text: string) => {
+    dirtyRef.current = true;
+    setSections((prev) =>
+      prev.map((s, i) =>
+        i === si
+          ? {
+              ...s,
+              lines: s.lines.map((l, j) => (j === li ? { ...l, text } : l)),
+            }
+          : s,
+      ),
+    );
+    setAltPicker(null);
+  };
+
+  const fetchRhymes = async (si: number, li: number) => {
+    if (rhymesData?.si === si && rhymesData?.li === li) {
+      setRhymesData(null);
+      return;
+    }
+    const lineText = sections[si]?.lines[li]?.text ?? "";
+    const lastWord = lineText
+      .trim()
+      .split(/\s+/)
+      .pop()
+      ?.replace(/[^\w\u00C0-\u024F]/g, "");
+    if (!lastWord) return;
+    setRhymeLoading({ si, li });
+    setRhymesData(null);
+    try {
+      const res = await fetch("/api/rhyme-suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          word: lastWord,
+          language: language ?? "English",
+        }),
+      });
+      if (res.ok) {
+        const { rhymes } = await res.json();
+        setRhymesData({ si, li, words: rhymes });
+      }
+    } catch {
+      /* silently fail */
+    } finally {
+      setRhymeLoading(null);
+    }
+  };
+
+  const applyRhyme = (si: number, li: number, rhymeWord: string) => {
+    dirtyRef.current = true;
+    setSections((prev) =>
+      prev.map((s, i) => {
+        if (i !== si) return s;
+        return {
+          ...s,
+          lines: s.lines.map((l, j) => {
+            if (j !== li) return l;
+            const words = l.text.trimEnd().split(/\s+/);
+            words[words.length - 1] = rhymeWord;
+            return { ...l, text: words.join(" ") };
+          }),
+        };
+      }),
+    );
+    setRhymesData(null);
+  };
+
   const regenSingleLine = async (si: number, li: number) => {
     if (!version) return;
     setRegenLine({ si, li });
+    setAltPicker(null);
+    setRhymesData(null);
     setRegenError(null);
     try {
       const res = await fetch(`/api/projects/${projectId}/regen-line`, {
@@ -160,19 +316,9 @@ export function LyricsEditor({ projectId, version, onSaved }: Props) {
         const body = await res.json().catch(() => ({ error: "Unknown error" }));
         throw new Error(body.error ?? "Request failed");
       }
-      const { line } = await res.json();
-      setSections((prev) =>
-        prev.map((s, i) =>
-          i === si
-            ? {
-                ...s,
-                lines: s.lines.map((l, j) =>
-                  j === li ? { ...l, text: line } : l,
-                ),
-              }
-            : s,
-        ),
-      );
+      const { lines } = await res.json();
+      // Show 3 alternatives to pick from instead of directly replacing
+      setAltPicker({ si, li, options: lines });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setRegenError(msg);
@@ -237,6 +383,31 @@ export function LyricsEditor({ projectId, version, onSaved }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowSyllables((v) => !v)}
+            title="Toggle syllable counter"
+            className={`flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors ${
+              showSyllables
+                ? "border-purple-500 text-purple-400 bg-purple-500/10"
+                : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Hash className="h-3 w-3" /> Syllables
+          </button>
+        </div>
+        <span className="text-[10px] text-muted-foreground">
+          {autoSaveStatus === "saving" && "Saving…"}
+          {autoSaveStatus === "saved" && (
+            <span className="text-green-400 flex items-center gap-1">
+              <Check className="h-3 w-3" /> Auto-saved
+            </span>
+          )}
+        </span>
+      </div>
+
       {regenError && (
         <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-sm text-destructive flex justify-between items-center gap-2">
           <span>Regen failed: {regenError}</span>
@@ -271,53 +442,123 @@ export function LyricsEditor({ projectId, version, onSaved }: Props) {
           </div>
 
           {section.lines.map((line, li) => (
-            <div
-              key={li}
-              className="group flex items-start gap-2 rounded-md px-2 py-0.5 hover:bg-muted/40 transition-colors"
-            >
-              <span className="text-muted-foreground/50 text-[10px] tabular-nums pt-2 w-8 shrink-0">
-                {Math.floor(line.timeSec / 60)}:
-                {String(Math.floor(line.timeSec % 60)).padStart(2, "0")}
-              </span>
+            <div key={li}>
+              {/* Main line row */}
+              <div className="group flex items-start gap-2 rounded-md px-2 py-0.5 hover:bg-muted/40 transition-colors">
+                <span className="text-muted-foreground/50 text-[10px] tabular-nums pt-2 w-8 shrink-0">
+                  {Math.floor(line.timeSec / 60)}:
+                  {String(Math.floor(line.timeSec % 60)).padStart(2, "0")}
+                </span>
 
-              <div className="flex-1">
-                <AutoTextarea
-                  value={line.text}
-                  placeholder="Write a line…"
-                  onChange={(v) => handleLineChange(si, li, v)}
-                  onEnter={() => insertLineAfter(si, li)}
-                  onBackspaceEmpty={() => deleteLine(si, li)}
-                />
-              </div>
-
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pt-1 shrink-0">
-                <button
-                  onClick={() => regenSingleLine(si, li)}
-                  disabled={regenLine !== null}
-                  className="text-muted-foreground hover:text-purple-400 p-0.5 disabled:opacity-40"
-                  title="Regenerate this line"
-                >
-                  {regenLine?.si === si && regenLine?.li === li ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Wand2 className="h-3.5 w-3.5" />
+                <div className="flex-1">
+                  <AutoTextarea
+                    value={line.text}
+                    placeholder="Write a line…"
+                    onChange={(v) => handleLineChange(si, li, v)}
+                    onEnter={() => insertLineAfter(si, li)}
+                    onBackspaceEmpty={() => deleteLine(si, li)}
+                  />
+                  {showSyllables && line.text && (
+                    <span className="text-[10px] text-muted-foreground/50">
+                      {countSyllables(line.text)} syl
+                    </span>
                   )}
-                </button>
-                <button
-                  onClick={() => insertLineAfter(si, li)}
-                  className="text-muted-foreground hover:text-foreground p-0.5"
-                  title="Add line below"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => deleteLine(si, li)}
-                  className="text-muted-foreground hover:text-destructive p-0.5"
-                  title="Delete line"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                </div>
+
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pt-1 shrink-0">
+                  <button
+                    onClick={() => regenSingleLine(si, li)}
+                    disabled={regenLine !== null}
+                    className="text-muted-foreground hover:text-purple-400 p-0.5 disabled:opacity-40"
+                    title="Suggest 3 alternatives for this line"
+                  >
+                    {regenLine?.si === si && regenLine?.li === li ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Wand2 className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => fetchRhymes(si, li)}
+                    disabled={rhymeLoading !== null}
+                    className={`p-0.5 disabled:opacity-40 ${
+                      rhymesData?.si === si && rhymesData?.li === li
+                        ? "text-green-400"
+                        : "text-muted-foreground hover:text-green-400"
+                    }`}
+                    title="Rhyme suggestions for last word"
+                  >
+                    {rhymeLoading?.si === si && rhymeLoading?.li === li ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Mic2 className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => insertLineAfter(si, li)}
+                    className="text-muted-foreground hover:text-foreground p-0.5"
+                    title="Add line below"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => deleteLine(si, li)}
+                    className="text-muted-foreground hover:text-destructive p-0.5"
+                    title="Delete line"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
+
+              {/* Alt-picker: 3 AI alternatives */}
+              {altPicker?.si === si && altPicker?.li === li && (
+                <div className="ml-10 mt-1 mb-2 rounded-md border border-purple-500/30 bg-purple-500/5 p-2 space-y-1">
+                  <p className="text-[10px] text-purple-400 mb-1.5 font-medium">
+                    Choose an alternative:
+                  </p>
+                  {altPicker.options.map((opt, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => applyAlt(si, li, opt)}
+                      className="w-full text-left text-sm px-2 py-1.5 rounded hover:bg-purple-500/20 text-foreground transition-colors"
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setAltPicker(null)}
+                    className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground mt-1"
+                  >
+                    <X className="h-3 w-3" /> Cancel
+                  </button>
+                </div>
+              )}
+
+              {/* Rhyme suggestions */}
+              {rhymesData?.si === si && rhymesData?.li === li && (
+                <div className="ml-10 mt-1 mb-2 flex flex-wrap gap-1.5 items-center">
+                  <span className="text-[10px] text-muted-foreground">
+                    Rhymes:
+                  </span>
+                  {rhymesData.words.map((word) => (
+                    <button
+                      key={word}
+                      onClick={() => applyRhyme(si, li, word)}
+                      className="text-xs px-2 py-0.5 rounded-full border border-green-500/40 text-green-400 hover:bg-green-500/10 transition-colors"
+                      title="Replace last word with this rhyme"
+                    >
+                      {word}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setRhymesData(null)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

@@ -2,7 +2,15 @@
 // components/export-buttons.tsx
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Copy, Download, FileJson, FileText, Check } from "lucide-react";
+import {
+  Copy,
+  Download,
+  FileJson,
+  FileText,
+  Check,
+  Printer,
+  Music,
+} from "lucide-react";
 
 interface LyricLine {
   timeSec: number;
@@ -47,6 +55,51 @@ function buildPlainText(lyricsJson: LyricsOutput, projectName: string): string {
     lines.push(lyricsJson.performanceNotes);
   }
   return lines.join("\n");
+}
+
+function buildLrc(lyricsJson: LyricsOutput, projectName: string): string {
+  const lines: string[] = [
+    `[ti:${lyricsJson.title ?? projectName}]`,
+    `[ar:]`,
+    ``,
+  ];
+  for (const s of lyricsJson.lyrics) {
+    for (const l of s.lines) {
+      const min = String(Math.floor(l.timeSec / 60)).padStart(2, "0");
+      const sec = String(Math.floor(l.timeSec % 60)).padStart(2, "0");
+      lines.push(`[${min}:${sec}.00]${l.text}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+function buildPdfHtml(lyricsJson: LyricsOutput, projectName: string): string {
+  const title = lyricsJson.title ?? projectName;
+  let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>
+  body{font-family:Georgia,serif;max-width:600px;margin:40px auto;line-height:1.8;color:#111}
+  h1{font-size:24px;margin-bottom:4px}
+  .brief{color:#777;font-style:italic;margin-bottom:24px;font-size:14px}
+  .section{font-weight:bold;text-transform:uppercase;letter-spacing:2px;font-size:11px;color:#999;margin:24px 0 8px}
+  .line{margin:2px 0;font-size:15px}
+  .time{color:#bbb;font-size:11px;margin-right:10px;font-family:monospace}
+  @media print{body{margin:20px}}
+  </style></head><body>`;
+  html += `<h1>${title}</h1>`;
+  if (lyricsJson.songBrief)
+    html += `<p class="brief">${lyricsJson.songBrief}</p>`;
+  for (const s of lyricsJson.lyrics) {
+    html += `<p class="section">[${s.section}]</p>`;
+    for (const l of s.lines) {
+      const m = Math.floor(l.timeSec / 60);
+      const sec = String(Math.floor(l.timeSec % 60)).padStart(2, "0");
+      html += `<p class="line"><span class="time">${m}:${sec}</span>${l.text}</p>`;
+    }
+  }
+  if (lyricsJson.performanceNotes) {
+    html += `<p class="section">--- Notes ---</p><p style="font-size:14px">${lyricsJson.performanceNotes}</p>`;
+  }
+  html += `</body></html>`;
+  return html;
 }
 
 function downloadText(content: string, filename: string) {
@@ -99,6 +152,21 @@ export function ExportButtons({ version, projectName }: Props) {
 
   const handleJson = () => {
     downloadJSON(lyricsJson, `${safeName}_lyrics.json`);
+  };
+
+  const handleLrc = () => {
+    const lrc = buildLrc(lyricsJson, projectName);
+    downloadText(lrc, `${safeName}.lrc`);
+  };
+
+  const handlePdf = () => {
+    const html = buildPdfHtml(lyricsJson, projectName);
+    const win = window.open("", "_blank", "width=720,height=900");
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 300);
   };
 
   // Minimal .docx-like RTF export (no external deps required in browser)
@@ -167,6 +235,24 @@ export function ExportButtons({ version, projectName }: Props) {
         >
           <FileJson className="h-4 w-4" />
           Export JSON
+        </Button>
+
+        <Button
+          variant="outline"
+          onClick={handleLrc}
+          className="justify-start gap-2"
+        >
+          <Music className="h-4 w-4" />
+          Download .lrc (Karaoke)
+        </Button>
+
+        <Button
+          variant="outline"
+          onClick={handlePdf}
+          className="justify-start gap-2"
+        >
+          <Printer className="h-4 w-4" />
+          Print / Save PDF
         </Button>
       </div>
     </div>
