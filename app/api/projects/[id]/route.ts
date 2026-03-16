@@ -57,6 +57,7 @@ export async function PATCH(
       topic: body.topic,
       inspoArtist: body.inspoArtist,
       inspoSong: body.inspoSong,
+      keywords: body.keywords,
       bpm: body.bpm,
     },
   });

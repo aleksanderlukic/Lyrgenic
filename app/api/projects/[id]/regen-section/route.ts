@@ -62,6 +62,7 @@ export async function POST(
       topic: project.topic ?? undefined,
       inspoArtist: project.inspoArtist ?? undefined,
       inspoSong: project.inspoSong ?? undefined,
+      keywords: project.keywords ?? undefined,
       rhyme: project.rhyme,
       existingContext,
       targetSection: sectionName,

@@ -84,6 +84,7 @@ export function CreateProjectWizard() {
     topic: "",
     inspoArtist: "",
     inspoSong: "",
+    keywords: "",
   });
 
   // ── Step 1 validation ───────────────────────────────────────────────
@@ -119,6 +120,7 @@ export function CreateProjectWizard() {
           topic: step2.topic,
           inspoArtist: step2.inspoArtist,
           inspoSong: step2.inspoSong,
+          keywords: step2.keywords,
         }),
       });
       const data = await res.json();
@@ -362,6 +364,26 @@ export function CreateProjectWizard() {
               * Inspiration artist/song is used for style guidance only. No
               lyrics will be copied.
             </p>
+
+            <div className="space-y-1.5">
+              <Label>
+                Words to include in the lyrics{" "}
+                <span className="text-muted-foreground/60 text-xs">
+                  (optional)
+                </span>
+              </Label>
+              <Textarea
+                placeholder="e.g. love, night drive, memories, city lights"
+                rows={2}
+                value={step2.keywords}
+                onChange={(e) =>
+                  setStep2((p) => ({ ...p, keywords: e.target.value }))
+                }
+              />
+              <p className="text-xs text-muted-foreground/60">
+                These words or themes will be woven naturally into the lyrics.
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -386,6 +408,9 @@ export function CreateProjectWizard() {
               <Row label="Language" value={step2.language} />
               {step2.topic && <Row label="Topic" value={step2.topic} />}
               <Row label="Rhyme" value={step2.rhyme ? "On" : "Off"} />
+              {step2.keywords && (
+                <Row label="Keywords" value={step2.keywords} />
+              )}
               {step2.inspoArtist && (
                 <Row
                   label="Inspired by"

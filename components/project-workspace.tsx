@@ -65,6 +65,7 @@ interface Project {
   rhyme: boolean;
   inspoArtist: string | null;
   inspoSong: string | null;
+  keywords: string | null;
   audioOriginalKey: string | null;
   lyricsVersions: LyricsVersion[];
 }
@@ -354,6 +355,9 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
                     label="Inspiration"
                     value={`${project.inspoArtist}${project.inspoSong ? ` – ${project.inspoSong}` : ""}`}
                   />
+                )}
+                {project.keywords && (
+                  <Row label="Keywords" value={project.keywords} />
                 )}
               </div>
             )}

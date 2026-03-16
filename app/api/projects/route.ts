@@ -18,6 +18,7 @@ const CreateSchema = z.object({
   topic: z.string().max(1000).optional(),
   inspoArtist: z.string().max(100).optional(),
   inspoSong: z.string().max(200).optional(),
+  keywords: z.string().max(500).optional(),
   bpm: z.number().min(20).max(400).optional(),
 });
 
@@ -98,6 +99,7 @@ export async function POST(req: Request) {
       topic: result.data.topic,
       inspoArtist: result.data.inspoArtist,
       inspoSong: result.data.inspoSong,
+      keywords: result.data.keywords,
       bpm: result.data.bpm,
     },
   });

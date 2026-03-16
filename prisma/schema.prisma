@@ -103,6 +103,7 @@ model Project {
   topic            String?    @db.Text
   inspoArtist      String?
   inspoSong        String?
+  keywords         String?    @db.Text
   status           String     @default("created") // created | analyzing | ready | generating | done | error
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
