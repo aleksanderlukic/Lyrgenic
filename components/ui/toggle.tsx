@@ -5,10 +5,17 @@ interface ToggleProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label?: string;
+  description?: string;
   className?: string;
 }
 
-export function Toggle({ checked, onChange, label, className }: ToggleProps) {
+export function Toggle({
+  checked,
+  onChange,
+  label,
+  description,
+  className,
+}: ToggleProps) {
   return (
     <label
       className={cn("inline-flex items-center gap-3 cursor-pointer", className)}
@@ -19,7 +26,7 @@ export function Toggle({ checked, onChange, label, className }: ToggleProps) {
         aria-checked={checked}
         onClick={() => onChange(!checked)}
         className={cn(
-          "relative inline-flex h-5 w-9 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500",
+          "relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500",
           checked ? "bg-purple-500" : "bg-muted",
         )}
       >
@@ -30,7 +37,14 @@ export function Toggle({ checked, onChange, label, className }: ToggleProps) {
           )}
         />
       </button>
-      {label && <span className="text-sm text-foreground">{label}</span>}
+      {(label || description) && (
+        <div className="flex flex-col gap-0.5">
+          {label && <span className="text-sm text-foreground">{label}</span>}
+          {description && (
+            <span className="text-xs text-muted-foreground">{description}</span>
+          )}
+        </div>
+      )}
     </label>
   );
 }

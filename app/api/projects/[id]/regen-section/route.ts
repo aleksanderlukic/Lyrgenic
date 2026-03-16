@@ -62,15 +62,18 @@ export async function POST(
       topic: project.topic ?? undefined,
       inspoArtist: project.inspoArtist ?? undefined,
       inspoSong: project.inspoSong ?? undefined,
+      rhyme: project.rhyme,
       existingContext,
       targetSection: sectionName,
     });
 
     // Merge new section into existing lyrics
     const existingLyricsObj = base.lyricsJson as any;
-    const existingLyricsArr: LyricsOutput["lyrics"] = Array.isArray(existingLyricsObj)
+    const existingLyricsArr: LyricsOutput["lyrics"] = Array.isArray(
+      existingLyricsObj,
+    )
       ? existingLyricsObj
-      : existingLyricsObj?.lyrics ?? [];
+      : (existingLyricsObj?.lyrics ?? []);
     const newSection = output.lyrics.find((s) => s.section === sectionName);
     const mergedLyrics = existingLyricsArr.map((s) =>
       s.section === sectionName && newSection ? newSection : s,

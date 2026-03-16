@@ -80,6 +80,7 @@ export function CreateProjectWizard() {
     vibe: "motivational",
     language: "English",
     isExplicit: false,
+    rhyme: false,
     topic: "",
     inspoArtist: "",
     inspoSong: "",
@@ -114,6 +115,7 @@ export function CreateProjectWizard() {
           vibe: step2.vibe,
           language: step2.language,
           isExplicit: step2.isExplicit,
+          rhyme: step2.rhyme,
           topic: step2.topic,
           inspoArtist: step2.inspoArtist,
           inspoSong: step2.inspoSong,
@@ -288,11 +290,23 @@ export function CreateProjectWizard() {
               </Select>
             </div>
 
-            <Toggle
-              checked={step2.isExplicit}
-              onChange={(v) => setStep2((p) => ({ ...p, isExplicit: v }))}
-              label="Allow explicit content"
-            />
+            <div className="flex flex-col gap-3">
+              <Toggle
+                checked={step2.isExplicit}
+                onChange={(v) => setStep2((p) => ({ ...p, isExplicit: v }))}
+                label="Allow explicit content"
+              />
+              <Toggle
+                checked={step2.rhyme}
+                onChange={(v) => setStep2((p) => ({ ...p, rhyme: v }))}
+                label="Rhyme"
+                description={
+                  step2.rhyme
+                    ? "Lyrics will rhyme naturally and smoothly"
+                    : "Lyrics will flow freely without focusing on rhyming"
+                }
+              />
+            </div>
 
             <div className="space-y-1.5">
               <Label>
@@ -371,6 +385,7 @@ export function CreateProjectWizard() {
               <Row label="Vibe" value={step2.vibe} />
               <Row label="Language" value={step2.language} />
               {step2.topic && <Row label="Topic" value={step2.topic} />}
+              <Row label="Rhyme" value={step2.rhyme ? "On" : "Off"} />
               {step2.inspoArtist && (
                 <Row
                   label="Inspired by"

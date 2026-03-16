@@ -101,6 +101,7 @@ export interface GenerateLyricsParams {
   topic?: string;
   inspoArtist?: string;
   inspoSong?: string;
+  rhyme?: boolean;
   existingContext?: string; // for section regen
   targetSection?: string; // for section regen
 }
@@ -129,6 +130,7 @@ Song preferences:
 - Topic/Story: ${params.topic ?? "freestyle – you decide"}
 ${params.inspoArtist ? `- Inspiration artist: ${params.inspoArtist} (style reference only)` : ""}
 ${params.inspoSong ? `- Inspiration song: ${params.inspoSong} (style reference only)` : ""}
+- Rhyme style: ${params.rhyme ? "Write lyrics with natural and smooth rhyming, keeping the meaning, flow, and emotion strong. Avoid forced or childish rhymes." : "Write lyrics naturally with good flow and emotion, without focusing on rhyming."}
 ${params.targetSection ? `\nREGENERATE ONLY the "${params.targetSection}" section. Keep all other sections unchanged. Existing context:\n${params.existingContext}` : ""}
 
 Return ONLY valid JSON matching the schema.`;

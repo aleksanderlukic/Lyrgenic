@@ -31,6 +31,7 @@ export async function runGeneration(data: {
       topic: project.topic ?? undefined,
       inspoArtist: project.inspoArtist ?? undefined,
       inspoSong: project.inspoSong ?? undefined,
+      rhyme: project.rhyme,
     });
 
     // Find next version number

@@ -4,8 +4,39 @@ import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Music2 } from "lucide-react";
 import { useState } from "react";
+
+/** Custom logo: a music note whose stem flows into a "C" */
+function LyrgenicIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {/* Note head */}
+      <ellipse
+        cx="6.5"
+        cy="18"
+        rx="2.5"
+        ry="1.8"
+        fill="currentColor"
+        stroke="none"
+      />
+      {/* Stem going up */}
+      <line x1="9" y1="18" x2="9" y2="6" />
+      {/* Flag on stem top */}
+      <path d="M9 6 C14 7, 14 11, 10 12" />
+      {/* Continuation: stem end curves into a C shape */}
+      <path d="M9 18 C9 19.2, 9.6 20.5, 11 21.2 C13 22.2, 16 21.8, 17.5 20 C18.5 18.8, 18.5 17, 17 16" />
+    </svg>
+  );
+}
 
 export function Navbar() {
   const { data: session } = useSession();
@@ -17,7 +48,7 @@ export function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
           <div className="rounded-lg gradient-bg p-1.5">
-            <Music2 className="h-5 w-5 text-white" />
+            <LyrgenicIcon className="h-5 w-5 text-white" />
           </div>
           <span className="text-lg font-bold gradient-text">Lyrgenic</span>
         </Link>

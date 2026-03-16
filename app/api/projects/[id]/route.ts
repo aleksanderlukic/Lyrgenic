@@ -53,6 +53,7 @@ export async function PATCH(
       vibe: body.vibe,
       language: body.language,
       isExplicit: body.isExplicit,
+      rhyme: body.rhyme,
       topic: body.topic,
       inspoArtist: body.inspoArtist,
       inspoSong: body.inspoSong,

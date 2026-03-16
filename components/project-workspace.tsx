@@ -20,6 +20,7 @@ import {
   Mic2,
   ChevronDown,
   ChevronUp,
+  Music2,
 } from "lucide-react";
 
 interface LyricsLine {
@@ -61,6 +62,7 @@ interface Project {
   analysisJson: any;
   topic: string | null;
   isExplicit: boolean;
+  rhyme: boolean;
   inspoArtist: string | null;
   inspoSong: string | null;
   audioOriginalKey: string | null;
@@ -90,6 +92,7 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
   const [activePanel, setActivePanel] = useState<PanelView>("lyrics");
   const [isAnalysing, setIsAnalysing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isTogglingRhyme, setIsTogglingRhyme] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [currentTimeSec, setCurrentTimeSec] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -196,6 +199,21 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
     }, 3000);
   }
 
+  async function handleToggleRhyme() {
+    setIsTogglingRhyme(true);
+    const newRhyme = !project.rhyme;
+    const res = await fetch(`/api/projects/${project.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rhyme: newRhyme }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setProject((p) => ({ ...p, rhyme: updated.rhyme }));
+    }
+    setIsTogglingRhyme(false);
+  }
+
   async function handlePreview() {
     setIsPreviewLoading(true);
     const res = await fetch(`/api/projects/${project.id}/preview`, {
@@ -227,6 +245,25 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            loading={isTogglingRhyme}
+            onClick={handleToggleRhyme}
+            title={
+              project.rhyme
+                ? "Rhyme: ON – click to turn off"
+                : "Rhyme: OFF – click to turn on"
+            }
+            className={`gap-1.5 transition-colors ${
+              project.rhyme
+                ? "border-purple-500 text-purple-400 bg-purple-500/10 hover:bg-purple-500/20"
+                : ""
+            }`}
+          >
+            <Music2 className="h-3.5 w-3.5" />
+            Rhyme: {project.rhyme ? "ON" : "OFF"}
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -310,6 +347,7 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
                   label="Explicit"
                   value={project.isExplicit ? "Yes" : "No"}
                 />
+                <Row label="Rhyme" value={project.rhyme ? "On" : "Off"} />
                 {project.topic && <Row label="Topic" value={project.topic} />}
                 {project.inspoArtist && (
                   <Row

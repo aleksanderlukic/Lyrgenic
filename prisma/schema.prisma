@@ -99,6 +99,7 @@ model Project {
   vibe             String?
   language         String     @default("English")
   isExplicit       Boolean    @default(false)
+  rhyme            Boolean    @default(false)
   topic            String?    @db.Text
   inspoArtist      String?
   inspoSong        String?
