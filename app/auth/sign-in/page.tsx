@@ -6,7 +6,12 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Sign in" };
 
-export default function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ callbackUrl?: string }>;
+}) {
+  const { callbackUrl } = await searchParams;
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md space-y-8">
@@ -22,11 +27,15 @@ export default function SignInPage() {
             Sign in to continue writing
           </p>
         </div>
-        <SignInForm />
+        <SignInForm callbackUrl={callbackUrl} />
         <p className="text-center text-sm text-muted-foreground">
           No account?{" "}
           <Link
-            href="/auth/sign-up"
+            href={
+              callbackUrl
+                ? `/auth/sign-up?callbackUrl=${encodeURIComponent(callbackUrl)}`
+                : "/auth/sign-up"
+            }
             className="text-purple-400 hover:text-purple-300"
           >
             Sign up free

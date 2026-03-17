@@ -2,7 +2,7 @@
 // app/collab/[token]/page.tsx – Accept a collaboration invite
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession, signIn } from "next-auth/react";
+import { useSession } from "next-auth/react";
 
 export default function CollabAcceptPage({
   params,
@@ -32,13 +32,6 @@ export default function CollabAcceptPage({
   }, [token]);
 
   async function handleAccept() {
-    if (status === "unauthenticated") {
-      // Redirect to sign-in then come back
-      signIn(undefined, {
-        callbackUrl: `/collab/${token}`,
-      });
-      return;
-    }
     setJoining(true);
     const res = await fetch(`/api/collab/${token}`, { method: "POST" });
     const data = await res.json();
@@ -93,17 +86,41 @@ export default function CollabAcceptPage({
               As a collaborator you can edit lyrics, regenerate sections and
               lines, and use all editor tools alongside the owner.
             </p>
-            <button
-              onClick={handleAccept}
-              disabled={joining || status === "loading"}
-              className="w-full py-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-semibold transition-colors"
-            >
-              {joining
-                ? "Joining…"
-                : status === "unauthenticated"
-                  ? "Sign in & join"
-                  : "Accept invite"}
-            </button>
+            {status === "unauthenticated" ? (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                  Sign in or create an account to accept
+                </p>
+                <button
+                  onClick={() =>
+                    router.push(
+                      `/auth/sign-in?callbackUrl=${encodeURIComponent(`/collab/${token}`)}`,
+                    )
+                  }
+                  className="w-full py-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors"
+                >
+                  Sign in
+                </button>
+                <button
+                  onClick={() =>
+                    router.push(
+                      `/auth/sign-up?callbackUrl=${encodeURIComponent(`/collab/${token}`)}`,
+                    )
+                  }
+                  className="w-full py-2.5 rounded-lg border border-purple-500 hover:bg-purple-600/10 text-purple-400 font-semibold transition-colors"
+                >
+                  Create account
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleAccept}
+                disabled={joining || status === "loading"}
+                className="w-full py-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-semibold transition-colors"
+              >
+                {joining ? "Joining…" : "Accept invite"}
+              </button>
+            )}
           </>
         )}
       </div>

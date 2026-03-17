@@ -18,7 +18,7 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-export function SignUpForm() {
+export function SignUpForm({ callbackUrl }: { callbackUrl?: string }) {
   const router = useRouter();
   const [serverError, setServerError] = useState("");
   const {
@@ -59,7 +59,7 @@ export function SignUpForm() {
         "Account created but auto sign-in failed. Please sign in.",
       );
     } else {
-      router.push("/app");
+      router.push(callbackUrl ?? "/app");
       router.refresh();
     }
   }

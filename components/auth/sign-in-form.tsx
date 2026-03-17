@@ -17,7 +17,7 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-export function SignInForm() {
+export function SignInForm({ callbackUrl }: { callbackUrl?: string }) {
   const router = useRouter();
   const [serverError, setServerError] = useState("");
   const {
@@ -37,7 +37,7 @@ export function SignInForm() {
     if (res?.error) {
       setServerError("Invalid email or password");
     } else {
-      router.push("/app");
+      router.push(callbackUrl ?? "/app");
       router.refresh();
     }
   }
