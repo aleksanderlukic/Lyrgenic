@@ -103,6 +103,27 @@ const STATUS_BADGE: Record<
 
 type PanelView = "lyrics" | "editor" | "history" | "export";
 
+const GENRES = ["rap", "drill", "afrobeat", "pop", "rnb", "rock", "custom"];
+const VIBES = [
+  "sad",
+  "happy",
+  "dark",
+  "romantic",
+  "aggressive",
+  "motivational",
+];
+const LANGUAGES = [
+  "English",
+  "Swedish",
+  "Spanish",
+  "French",
+  "Portuguese",
+  "German",
+  "Italian",
+  "Dutch",
+  "Other",
+];
+
 /** Static map: language name → BCP-47 code */
 const LANG_CODE: Record<string, string> = {
   English: "en",
@@ -177,6 +198,46 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
     useState<string>("normal");
   const [currentTimeSec, setCurrentTimeSec] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsEditing, setSettingsEditing] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState({
+    genre: initial.genre ?? "",
+    vibe: initial.vibe ?? "",
+    language: initial.language ?? "English",
+    isExplicit: initial.isExplicit,
+    rhyme: initial.rhyme,
+    topic: initial.topic ?? "",
+    inspoArtist: initial.inspoArtist ?? "",
+    inspoSong: initial.inspoSong ?? "",
+    keywords: initial.keywords ?? "",
+  });
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsSaveError, setSettingsSaveError] = useState<string | null>(
+    null,
+  );
+
+  async function saveProjectSettings() {
+    setSettingsSaving(true);
+    setSettingsSaveError(null);
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settingsDraft),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setSettingsSaveError(d.error ?? "Failed to save");
+      } else {
+        const updated = await res.json();
+        setProject((prev) => ({ ...prev, ...updated }));
+        setSettingsEditing(false);
+      }
+    } catch {
+      setSettingsSaveError("Network error");
+    } finally {
+      setSettingsSaving(false);
+    }
+  }
 
   // Load browser voices (async on some browsers)
   useEffect(() => {
@@ -929,7 +990,10 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
           <div className="rounded-xl border border-border bg-card">
             <button
               className="w-full flex items-center justify-between p-4 text-sm font-medium text-foreground"
-              onClick={() => setSettingsOpen(!settingsOpen)}
+              onClick={() => {
+                setSettingsOpen(!settingsOpen);
+                if (settingsEditing) setSettingsEditing(false);
+              }}
             >
               <span className="flex items-center gap-2">
                 <Settings className="h-4 w-4" /> Project settings
@@ -941,24 +1005,256 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
               )}
             </button>
             {settingsOpen && (
-              <div className="px-4 pb-4 text-sm text-muted-foreground space-y-1.5">
-                <Row label="Genre" value={project.genre} />
-                <Row label="Vibe" value={project.vibe} />
-                <Row label="Language" value={project.language} />
-                <Row
-                  label="Explicit"
-                  value={project.isExplicit ? "Yes" : "No"}
-                />
-                <Row label="Rhyme" value={project.rhyme ? "On" : "Off"} />
-                {project.topic && <Row label="Topic" value={project.topic} />}
-                {project.inspoArtist && (
-                  <Row
-                    label="Inspiration"
-                    value={`${project.inspoArtist}${project.inspoSong ? ` – ${project.inspoSong}` : ""}`}
-                  />
-                )}
-                {project.keywords && (
-                  <Row label="Keywords" value={project.keywords} />
+              <div className="px-4 pb-4 text-sm space-y-3">
+                {settingsEditing ? (
+                  <>
+                    {/* Genre */}
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground/60">
+                        Genre
+                      </label>
+                      <select
+                        value={settingsDraft.genre}
+                        onChange={(e) =>
+                          setSettingsDraft((d) => ({
+                            ...d,
+                            genre: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+                      >
+                        {GENRES.map((g) => (
+                          <option key={g} value={g}>
+                            {g}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {/* Vibe */}
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground/60">
+                        Vibe
+                      </label>
+                      <select
+                        value={settingsDraft.vibe}
+                        onChange={(e) =>
+                          setSettingsDraft((d) => ({
+                            ...d,
+                            vibe: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+                      >
+                        {VIBES.map((v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {/* Language */}
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground/60">
+                        Language
+                      </label>
+                      <select
+                        value={settingsDraft.language}
+                        onChange={(e) =>
+                          setSettingsDraft((d) => ({
+                            ...d,
+                            language: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+                      >
+                        {LANGUAGES.map((l) => (
+                          <option key={l} value={l}>
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {/* Explicit + Rhyme */}
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 text-muted-foreground cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={settingsDraft.isExplicit}
+                          onChange={(e) =>
+                            setSettingsDraft((d) => ({
+                              ...d,
+                              isExplicit: e.target.checked,
+                            }))
+                          }
+                          className="rounded"
+                        />
+                        Explicit
+                      </label>
+                      <label className="flex items-center gap-2 text-muted-foreground cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={settingsDraft.rhyme}
+                          onChange={(e) =>
+                            setSettingsDraft((d) => ({
+                              ...d,
+                              rhyme: e.target.checked,
+                            }))
+                          }
+                          className="rounded"
+                        />
+                        Rhyme
+                      </label>
+                    </div>
+                    {/* Topic */}
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground/60">
+                        Topic
+                      </label>
+                      <input
+                        type="text"
+                        value={settingsDraft.topic}
+                        onChange={(e) =>
+                          setSettingsDraft((d) => ({
+                            ...d,
+                            topic: e.target.value,
+                          }))
+                        }
+                        placeholder="What the song is about…"
+                        className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/40"
+                      />
+                    </div>
+                    {/* Inspiration */}
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground/60">
+                        Inspiration artist
+                      </label>
+                      <input
+                        type="text"
+                        value={settingsDraft.inspoArtist}
+                        onChange={(e) =>
+                          setSettingsDraft((d) => ({
+                            ...d,
+                            inspoArtist: e.target.value,
+                          }))
+                        }
+                        placeholder="Artist name"
+                        className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/40"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground/60">
+                        Inspiration song
+                      </label>
+                      <input
+                        type="text"
+                        value={settingsDraft.inspoSong}
+                        onChange={(e) =>
+                          setSettingsDraft((d) => ({
+                            ...d,
+                            inspoSong: e.target.value,
+                          }))
+                        }
+                        placeholder="Song title"
+                        className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/40"
+                      />
+                    </div>
+                    {/* Keywords */}
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground/60">
+                        Keywords
+                      </label>
+                      <input
+                        type="text"
+                        value={settingsDraft.keywords}
+                        onChange={(e) =>
+                          setSettingsDraft((d) => ({
+                            ...d,
+                            keywords: e.target.value,
+                          }))
+                        }
+                        placeholder="freedom, night, fire…"
+                        className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/40"
+                      />
+                    </div>
+                    {settingsSaveError && (
+                      <p className="text-xs text-red-400">
+                        {settingsSaveError}
+                      </p>
+                    )}
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={saveProjectSettings}
+                        disabled={settingsSaving}
+                        className="flex-1 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white text-xs font-semibold transition-colors"
+                      >
+                        {settingsSaving ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSettingsEditing(false);
+                          setSettingsSaveError(null);
+                          setSettingsDraft({
+                            genre: project.genre ?? "",
+                            vibe: project.vibe ?? "",
+                            language: project.language ?? "English",
+                            isExplicit: project.isExplicit,
+                            rhyme: project.rhyme,
+                            topic: project.topic ?? "",
+                            inspoArtist: project.inspoArtist ?? "",
+                            inspoSong: project.inspoSong ?? "",
+                            keywords: project.keywords ?? "",
+                          });
+                        }}
+                        className="px-3 py-1.5 rounded-lg border border-border hover:bg-muted text-xs text-muted-foreground transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-muted-foreground space-y-1.5">
+                      <Row label="Genre" value={project.genre} />
+                      <Row label="Vibe" value={project.vibe} />
+                      <Row label="Language" value={project.language} />
+                      <Row
+                        label="Explicit"
+                        value={project.isExplicit ? "Yes" : "No"}
+                      />
+                      <Row label="Rhyme" value={project.rhyme ? "On" : "Off"} />
+                      {project.topic && (
+                        <Row label="Topic" value={project.topic} />
+                      )}
+                      {project.inspoArtist && (
+                        <Row
+                          label="Inspiration"
+                          value={`${project.inspoArtist}${project.inspoSong ? ` – ${project.inspoSong}` : ""}`}
+                        />
+                      )}
+                      {project.keywords && (
+                        <Row label="Keywords" value={project.keywords} />
+                      )}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSettingsDraft({
+                          genre: project.genre ?? "",
+                          vibe: project.vibe ?? "",
+                          language: project.language ?? "English",
+                          isExplicit: project.isExplicit,
+                          rhyme: project.rhyme,
+                          topic: project.topic ?? "",
+                          inspoArtist: project.inspoArtist ?? "",
+                          inspoSong: project.inspoSong ?? "",
+                          keywords: project.keywords ?? "",
+                        });
+                        setSettingsEditing(true);
+                      }}
+                      className="mt-1 w-full py-1.5 rounded-lg border border-border hover:bg-muted text-xs text-muted-foreground transition-colors"
+                    >
+                      Edit settings
+                    </button>
+                  </>
                 )}
               </div>
             )}
