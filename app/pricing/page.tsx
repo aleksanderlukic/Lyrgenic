@@ -28,8 +28,7 @@ export default function PricingPage() {
           </div>
           <PricingCards freeMode={FREE_MODE} />
           <p className="text-center text-xs text-muted-foreground/50">
-            All plans include unlimited project storage. Prices in USD. Cancel
-            any time.
+            Always free. No credit card required, ever.
           </p>
         </div>
       </main>
