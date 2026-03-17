@@ -29,6 +29,7 @@ import {
   Link,
   Copy,
   Check,
+  X,
 } from "lucide-react";
 
 interface LyricsLine {
