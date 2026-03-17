@@ -1,6 +1,6 @@
 "use client";
 // components/lyrics-editor.tsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,11 @@ import {
   MessageSquare,
   X,
   Check,
+  GripVertical,
+  Clipboard,
+  RotateCcw,
+  RotateCw,
+  PlusCircle,
 } from "lucide-react";
 
 interface LyricLine {
@@ -111,6 +116,14 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
   const { data: session } = useSession();
 
   const [sections, setSections] = useState<LyricsSection[]>([]);
+  // Undo/redo history
+  const historyRef = useRef<LyricsSection[][]>([]);
+  const futureRef = useRef<LyricsSection[][]>([]);
+  // Drag & drop
+  const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  // Clipboard copy feedback
+  const [copied, setCopied] = useState(false);
   const [savingSection, setSavingSection] = useState<number | null>(null);
   const [regenLine, setRegenLine] = useState<{ si: number; li: number } | null>(
     null,
@@ -148,9 +161,63 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyRef = useRef(false);
 
+  /** Push current sections to undo history, then apply updater */
+  const mutateSections = useCallback(
+    (updater: (prev: LyricsSection[]) => LyricsSection[]) => {
+      setSections((prev) => {
+        historyRef.current = [...historyRef.current.slice(-49), prev];
+        futureRef.current = [];
+        dirtyRef.current = true;
+        return updater(prev);
+      });
+    },
+    [],
+  );
+
+  const undo = useCallback(() => {
+    const prev = historyRef.current.pop();
+    if (!prev) return;
+    setSections((cur) => {
+      futureRef.current = [cur, ...futureRef.current.slice(0, 49)];
+      dirtyRef.current = true;
+      return prev;
+    });
+  }, []);
+
+  const redo = useCallback(() => {
+    const next = futureRef.current.shift();
+    if (!next) return;
+    setSections((cur) => {
+      historyRef.current = [...historyRef.current.slice(-49), cur];
+      dirtyRef.current = true;
+      return next;
+    });
+  }, []);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      if (
+        ((e.ctrlKey || e.metaKey) && e.key === "y") ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "z")
+      ) {
+        e.preventDefault();
+        redo();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo]);
+
   useEffect(() => {
     if (version?.lyricsJson?.lyrics) {
       dirtyRef.current = false;
+      historyRef.current = [];
+      futureRef.current = [];
       setSections(
         version.lyricsJson.lyrics.map((s) => ({ ...s, lines: [...s.lines] })),
       );
@@ -230,8 +297,7 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
       secs = parseFloat(parts[0]);
     }
     if (!isNaN(secs) && secs >= 0) {
-      dirtyRef.current = true;
-      setSections((prev) =>
+      mutateSections((prev) =>
         prev.map((s, i) =>
           i === si
             ? {
@@ -248,10 +314,9 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
   };
 
   const handleLineChange = (si: number, li: number, text: string) => {
-    dirtyRef.current = true;
     setAltPicker(null);
     setRhymesData(null);
-    setSections((prev) =>
+    mutateSections((prev) =>
       prev.map((s, i) =>
         i === si
           ? {
@@ -264,8 +329,7 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
   };
 
   const insertLineAfter = (si: number, li: number) => {
-    dirtyRef.current = true;
-    setSections((prev) =>
+    mutateSections((prev) =>
       prev.map((s, i) => {
         if (i !== si) return s;
         const refLine = s.lines[li];
@@ -281,8 +345,7 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
   };
 
   const deleteLine = (si: number, li: number) => {
-    dirtyRef.current = true;
-    setSections((prev) =>
+    mutateSections((prev) =>
       prev.map((s, i) => {
         if (i !== si) return s;
         if (s.lines.length <= 1) return s;
@@ -292,8 +355,7 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
   };
 
   const applyAlt = (si: number, li: number, text: string) => {
-    dirtyRef.current = true;
-    setSections((prev) =>
+    mutateSections((prev) =>
       prev.map((s, i) =>
         i === si
           ? {
@@ -341,8 +403,7 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
   };
 
   const applyRhyme = (si: number, li: number, rhymeWord: string) => {
-    dirtyRef.current = true;
-    setSections((prev) =>
+    mutateSections((prev) =>
       prev.map((s, i) => {
         if (i !== si) return s;
         return {
@@ -357,6 +418,58 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
       }),
     );
     setRhymesData(null);
+  };
+
+  const addSection = () => {
+    mutateSections((prev) => {
+      const lastEnd = prev[prev.length - 1]?.lines.at(-1)?.timeSec ?? 0;
+      return [
+        ...prev,
+        { section: "new section", lines: [{ timeSec: lastEnd + 4, text: "" }] },
+      ];
+    });
+  };
+
+  const deleteSection = (si: number) => {
+    mutateSections((prev) => prev.filter((_, i) => i !== si));
+  };
+
+  const renameSectionInline = (si: number, name: string) => {
+    mutateSections((prev) =>
+      prev.map((s, i) => (i === si ? { ...s, section: name } : s)),
+    );
+  };
+
+  // Drag & drop sections
+  const handleDragStart = (si: number) => setDragSrcIdx(si);
+  const handleDragOver = (e: React.DragEvent, si: number) => {
+    e.preventDefault();
+    setDragOverIdx(si);
+  };
+  const handleDrop = (si: number) => {
+    if (dragSrcIdx === null || dragSrcIdx === si) {
+      setDragSrcIdx(null);
+      setDragOverIdx(null);
+      return;
+    }
+    mutateSections((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(dragSrcIdx, 1);
+      next.splice(si, 0, moved);
+      return next;
+    });
+    setDragSrcIdx(null);
+    setDragOverIdx(null);
+  };
+
+  const copyAllToClipboard = () => {
+    const text = sections
+      .map((s) => `[${s.section.toUpperCase()}]\n${s.lines.map((l) => l.text).join("\n")}`)
+      .join("\n\n");
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   const regenSingleLine = async (si: number, li: number) => {
@@ -447,8 +560,8 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
   return (
     <div className="space-y-6">
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => setShowSyllables((v) => !v)}
             title="Toggle syllable counter"
@@ -459,6 +572,34 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
             }`}
           >
             <Hash className="h-3 w-3" /> Syllables
+          </button>
+          <button
+            onClick={undo}
+            disabled={historyRef.current.length === 0}
+            title="Undo (Ctrl+Z)"
+            className="p-1 rounded border border-border text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={redo}
+            disabled={futureRef.current.length === 0}
+            title="Redo (Ctrl+Y)"
+            className="p-1 rounded border border-border text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+          >
+            <RotateCw className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={copyAllToClipboard}
+            title="Copy all lyrics to clipboard"
+            className={`flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors ${
+              copied
+                ? "border-green-500 text-green-400 bg-green-500/10"
+                : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {copied ? <Check className="h-3 w-3" /> : <Clipboard className="h-3 w-3" />}
+            {copied ? "Copied!" : "Copy all"}
           </button>
         </div>
         <span className="text-[10px] text-muted-foreground">
@@ -483,25 +624,53 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
         </div>
       )}
       {sections.map((section, si) => (
-        <div key={si} className="space-y-1">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-purple-400">
-              [{section.section}]
-            </p>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={savingSection === si}
-              onClick={() => regenSection(si)}
-              className="h-6 px-2 text-xs gap-1"
-            >
-              {savingSection === si ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3 w-3" />
-              )}
-              Regen
-            </Button>
+        <div
+          key={si}
+          className={`space-y-1 rounded-lg transition-colors ${
+            dragOverIdx === si && dragSrcIdx !== si
+              ? "ring-2 ring-purple-500/40 bg-purple-500/5"
+              : ""
+          }`}
+          draggable
+          onDragStart={() => handleDragStart(si)}
+          onDragOver={(e) => handleDragOver(e, si)}
+          onDrop={() => handleDrop(si)}
+          onDragEnd={() => { setDragSrcIdx(null); setDragOverIdx(null); }}
+        >
+          <div className="flex items-center justify-between mb-2 gap-1">
+            {/* Drag handle */}
+            <div className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0 pt-0.5">
+              <GripVertical className="h-4 w-4" />
+            </div>
+            {/* Editable section name */}
+            <input
+              value={section.section}
+              onChange={(e) => renameSectionInline(si, e.target.value)}
+              className="text-xs font-bold uppercase tracking-wider text-purple-400 bg-transparent border-none outline-none focus:underline decoration-purple-400/50 flex-1 min-w-0"
+            />
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={savingSection === si}
+                onClick={() => regenSection(si)}
+                className="h-6 px-2 text-xs gap-1"
+              >
+                {savingSection === si ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3" />
+                )}
+                Regen
+              </Button>
+              <button
+                onClick={() => deleteSection(si)}
+                title="Delete section"
+                className="p-1 text-muted-foreground/50 hover:text-destructive transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
 
           {section.lines.map((line, li) => (
@@ -651,9 +820,9 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
                   <span className="text-[10px] text-muted-foreground">
                     Rhymes:
                   </span>
-                  {rhymesData.words.map((word) => (
+                  {[...new Set(rhymesData.words)].map((word, idx) => (
                     <button
-                      key={word}
+                      key={`${word}-${idx}`}
                       onClick={() => applyRhyme(si, li, word)}
                       className="text-xs px-2 py-0.5 rounded-full border border-green-500/40 text-green-400 hover:bg-green-500/10 transition-colors"
                       title="Replace last word with this rhyme"
@@ -693,6 +862,14 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
           ))}
         </div>
       ))}
+
+      {/* Add section */}
+      <button
+        onClick={addSection}
+        className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:border-purple-500/50 hover:text-purple-400 transition-colors"
+      >
+        <PlusCircle className="h-3.5 w-3.5" /> Add section
+      </button>
 
       <div className="flex justify-end pt-2">
         <Button onClick={saveVersion} disabled={saving} size="sm">

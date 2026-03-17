@@ -31,6 +31,7 @@ import {
   Check,
   X,
   Users2,
+  Pencil,
 } from "lucide-react";
 
 interface LyricsLine {
@@ -198,6 +199,8 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
     useState<string>("normal");
   const [currentTimeSec, setCurrentTimeSec] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isRenamingProject, setIsRenamingProject] = useState(false);
+  const [projectNameDraft, setProjectNameDraft] = useState(initial.name);
   const [settingsEditing, setSettingsEditing] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState({
     genre: initial.genre ?? "",
@@ -237,6 +240,21 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
     } finally {
       setSettingsSaving(false);
     }
+  }
+
+  async function saveProjectName() {
+    const name = projectNameDraft.trim();
+    if (!name || name === project.name) {
+      setIsRenamingProject(false);
+      return;
+    }
+    const res = await fetch(`/api/projects/${project.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) setProject((prev) => ({ ...prev, name }));
+    setIsRenamingProject(false);
   }
 
   // Load browser voices (async on some browsers)
@@ -695,7 +713,36 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-xl font-bold text-foreground">{project.name}</h1>
+          {isRenamingProject ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                autoFocus
+                value={projectNameDraft}
+                onChange={(e) => setProjectNameDraft(e.target.value)}
+                onBlur={saveProjectName}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveProjectName();
+                  if (e.key === "Escape") {
+                    setProjectNameDraft(project.name);
+                    setIsRenamingProject(false);
+                  }
+                }}
+                className="text-xl font-bold bg-transparent border-b border-purple-500 outline-none text-foreground"
+              />
+            </div>
+          ) : (
+            <h1
+              className="text-xl font-bold text-foreground cursor-pointer hover:text-purple-300 transition-colors group flex items-center gap-2"
+              title="Click to rename"
+              onClick={() => {
+                setProjectNameDraft(project.name);
+                setIsRenamingProject(true);
+              }}
+            >
+              {project.name}
+              <Pencil className="h-3.5 w-3.5 text-muted-foreground/0 group-hover:text-muted-foreground/50 transition-colors" />
+            </h1>
+          )}
           <div className="flex items-center gap-3 mt-1">
             <Badge variant={status.variant}>{status.label}</Badge>
             {project.genre && (
