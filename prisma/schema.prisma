@@ -104,6 +104,7 @@ model Project {
   inspoArtist      String?
   inspoSong        String?
   keywords         String?    @db.Text
+  shareToken       String?    @unique  // read-only share link token
   status           String     @default("created") // created | analyzing | ready | generating | done | error
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt

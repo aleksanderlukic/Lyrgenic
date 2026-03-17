@@ -12,6 +12,7 @@ import {
   Wand2,
   Hash,
   Mic2,
+  MessageSquare,
   X,
   Check,
 } from "lucide-react";
@@ -134,6 +135,16 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
   const [autoSaveStatus, setAutoSaveStatus] = useState<
     "idle" | "saving" | "saved"
   >("idle");
+  const [editingTime, setEditingTime] = useState<{
+    si: number;
+    li: number;
+    value: string;
+  } | null>(null);
+  const [comments, setComments] = useState<Record<string, string>>({});
+  const [openComment, setOpenComment] = useState<{
+    si: number;
+    li: number;
+  } | null>(null);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyRef = useRef(false);
 
@@ -183,6 +194,58 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
   }, [sections]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load per-line comments from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(`lyrgenic-comments-${projectId}`);
+    if (stored) {
+      try {
+        setComments(JSON.parse(stored));
+      } catch {
+        /* ignore corrupt data */
+      }
+    }
+  }, [projectId]);
+
+  const commentKey = (si: number, li: number) => `${si}:${li}`;
+
+  const updateComment = (si: number, li: number, text: string) => {
+    const key = commentKey(si, li);
+    const updated = { ...comments, [key]: text };
+    setComments(updated);
+    localStorage.setItem(
+      `lyrgenic-comments-${projectId}`,
+      JSON.stringify(updated),
+    );
+  };
+
+  const commitTimeEdit = () => {
+    if (!editingTime) return;
+    const { si, li, value } = editingTime;
+    const parts = value.split(":");
+    let secs = 0;
+    if (parts.length === 2) {
+      secs = parseInt(parts[0], 10) * 60 + parseFloat(parts[1]);
+    } else {
+      secs = parseFloat(parts[0]);
+    }
+    if (!isNaN(secs) && secs >= 0) {
+      dirtyRef.current = true;
+      setSections((prev) =>
+        prev.map((s, i) =>
+          i === si
+            ? {
+                ...s,
+                lines: s.lines.map((l, j) =>
+                  j === li ? { ...l, timeSec: Math.round(secs) } : l,
+                ),
+              }
+            : s,
+        ),
+      );
+    }
+    setEditingTime(null);
+  };
 
   const handleLineChange = (si: number, li: number, text: string) => {
     dirtyRef.current = true;
@@ -445,10 +508,38 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
             <div key={li}>
               {/* Main line row */}
               <div className="group flex items-start gap-2 rounded-md px-2 py-0.5 hover:bg-muted/40 transition-colors">
-                <span className="text-muted-foreground/50 text-[10px] tabular-nums pt-2 w-8 shrink-0">
-                  {Math.floor(line.timeSec / 60)}:
-                  {String(Math.floor(line.timeSec % 60)).padStart(2, "0")}
-                </span>
+                {editingTime?.si === si && editingTime?.li === li ? (
+                  <input
+                    autoFocus
+                    value={editingTime.value}
+                    onChange={(e) =>
+                      setEditingTime({ ...editingTime, value: e.target.value })
+                    }
+                    onBlur={commitTimeEdit}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitTimeEdit();
+                      if (e.key === "Escape") setEditingTime(null);
+                    }}
+                    className="text-[10px] tabular-nums pt-2 w-8 shrink-0 bg-purple-500/10 border border-purple-500/40 rounded text-center outline-none text-purple-300"
+                  />
+                ) : (
+                  <button
+                    onClick={() =>
+                      setEditingTime({
+                        si,
+                        li,
+                        value: `${Math.floor(line.timeSec / 60)}:${String(
+                          Math.floor(line.timeSec % 60),
+                        ).padStart(2, "0")}`,
+                      })
+                    }
+                    className="text-muted-foreground/50 text-[10px] tabular-nums pt-2 w-8 shrink-0 hover:text-purple-400 transition-colors text-left"
+                    title="Click to edit timestamp"
+                  >
+                    {Math.floor(line.timeSec / 60)}:
+                    {String(Math.floor(line.timeSec % 60)).padStart(2, "0")}
+                  </button>
+                )}
 
                 <div className="flex-1">
                   <AutoTextarea
@@ -493,6 +584,25 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
                     ) : (
                       <Mic2 className="h-3.5 w-3.5" />
                     )}
+                  </button>
+                  <button
+                    onClick={() =>
+                      setOpenComment(
+                        openComment?.si === si && openComment?.li === li
+                          ? null
+                          : { si, li },
+                      )
+                    }
+                    className={`p-0.5 ${
+                      openComment?.si === si && openComment?.li === li
+                        ? "text-yellow-400"
+                        : comments[commentKey(si, li)]
+                          ? "text-yellow-400/60"
+                          : "text-muted-foreground hover:text-yellow-400"
+                    }`}
+                    title="Add a note to this line"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => insertLineAfter(si, li)}
@@ -556,6 +666,26 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+
+              {/* Per-line comment */}
+              {openComment?.si === si && openComment?.li === li && (
+                <div className="ml-10 mt-1 mb-2">
+                  <textarea
+                    autoFocus
+                    value={comments[commentKey(si, li)] ?? ""}
+                    onChange={(e) => updateComment(si, li, e.target.value)}
+                    placeholder="Add a note for this line…"
+                    rows={2}
+                    className="w-full text-xs bg-yellow-500/5 border border-yellow-500/20 rounded px-2 py-1.5 text-foreground placeholder:text-muted-foreground/40 resize-none outline-none focus:border-yellow-500/50"
+                  />
+                  <button
+                    onClick={() => setOpenComment(null)}
+                    className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground mt-0.5"
+                  >
+                    <X className="h-3 w-3" /> Close
                   </button>
                 </div>
               )}

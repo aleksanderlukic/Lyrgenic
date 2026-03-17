@@ -1,6 +1,6 @@
 "use client";
 // components/project-workspace.tsx – Main split workspace
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,9 @@ import {
   Square,
   Volume2,
   Lightbulb,
-  X,
+  Link,
+  Copy,
+  Check,
 } from "lucide-react";
 
 interface LyricsLine {
@@ -74,6 +76,7 @@ interface Project {
   keywords: string | null;
   audioOriginalKey: string | null;
   youtubeUrl: string | null;
+  shareToken: string | null;
   lyricsVersions: LyricsVersion[];
 }
 
@@ -104,6 +107,14 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
   const [beatOpen, setBeatOpen] = useState(false);
   const [beatFileUrl, setBeatFileUrl] = useState<string | null>(null);
   const [beatFileLoading, setBeatFileLoading] = useState(false);
+  const [beatPlaying, setBeatPlaying] = useState(false);
+  const [beatPulse, setBeatPulse] = useState(false);
+  const beatPulseRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [shareToken, setShareToken] = useState<string | null>(
+    initial.shareToken,
+  );
+  const [shareCopied, setShareCopied] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
   const [inspirationOpen, setInspirationOpen] = useState(false);
   const [inspirationLoading, setInspirationLoading] = useState(false);
   const [inspirationData, setInspirationData] = useState<{
@@ -440,6 +451,48 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
     return m?.[1] ?? null;
   }
 
+  // Tempo-sync: pulse on each beat when beat file is playing
+  useEffect(() => {
+    if (beatPlaying && project.bpm) {
+      const interval = Math.round(60000 / project.bpm);
+      beatPulseRef.current = setInterval(() => {
+        setBeatPulse(true);
+        setTimeout(() => setBeatPulse(false), 80);
+      }, interval);
+    } else {
+      if (beatPulseRef.current) clearInterval(beatPulseRef.current);
+      setBeatPulse(false);
+    }
+    return () => {
+      if (beatPulseRef.current) clearInterval(beatPulseRef.current);
+    };
+  }, [beatPlaying, project.bpm]);
+
+  async function handleShare() {
+    setShareLoading(true);
+    try {
+      let token = shareToken;
+      if (!token) {
+        const res = await fetch(`/api/projects/${project.id}/share`, {
+          method: "POST",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          token = data.shareToken;
+          setShareToken(token);
+        }
+      }
+      if (token) {
+        const url = `${window.location.origin}/share/${token}`;
+        await navigator.clipboard.writeText(url);
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2500);
+      }
+    } finally {
+      setShareLoading(false);
+    }
+  }
+
   async function handleInspire() {
     setInspirationLoading(true);
     try {
@@ -659,6 +712,25 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
 
       {beatOpen && (
         <div className="mb-4 rounded-lg border border-border bg-card p-3">
+          {project.bpm && (
+            <div className="flex items-center gap-2 mb-2">
+              <span
+                className={`w-2.5 h-2.5 rounded-full transition-all duration-75 ${
+                  beatPlaying
+                    ? beatPulse
+                      ? "bg-blue-400 scale-125"
+                      : "bg-blue-500/50"
+                    : "bg-muted-foreground/30"
+                }`}
+              />
+              <span className="text-xs text-muted-foreground">
+                {Math.round(project.bpm)} BPM
+                {!beatPlaying &&
+                  project.sourceType !== "youtube" &&
+                  " · Press play to sync"}
+              </span>
+            </div>
+          )}
           {project.sourceType === "youtube" && project.youtubeUrl ? (
             (() => {
               const vid = getYoutubeId(project.youtubeUrl);
@@ -682,7 +754,14 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
               );
             })()
           ) : beatFileUrl ? (
-            <audio controls src={beatFileUrl} className="w-full" />
+            <audio
+              controls
+              src={beatFileUrl}
+              className="w-full"
+              onPlay={() => setBeatPlaying(true)}
+              onPause={() => setBeatPlaying(false)}
+              onEnded={() => setBeatPlaying(false)}
+            />
           ) : (
             <p className="text-sm text-muted-foreground">No audio available.</p>
           )}
