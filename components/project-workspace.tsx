@@ -111,14 +111,17 @@ const LANG_CODE: Record<string, string> = {
 };
 
 /** All possible voice presets (pitch/rate adjustments on top of the voice) */
-const VOICE_PRESETS: Record<string, { label: string; pitch: number; rate: number }> = {
-  normal:       { label: "Normal",       pitch: 1.0, rate: 1.0 },
-  female:       { label: "Female",       pitch: 1.2, rate: 1.0 },
-  "deep-robot": { label: "Deep Robot",   pitch: 0.1, rate: 0.8 },
-  "high-robot": { label: "High Robot",   pitch: 2.0, rate: 1.0 },
+const VOICE_PRESETS: Record<
+  string,
+  { label: string; pitch: number; rate: number }
+> = {
+  normal: { label: "Normal", pitch: 1.0, rate: 1.0 },
+  female: { label: "Female", pitch: 1.2, rate: 1.0 },
+  "deep-robot": { label: "Deep Robot", pitch: 0.1, rate: 0.8 },
+  "high-robot": { label: "High Robot", pitch: 2.0, rate: 1.0 },
   "slow-robot": { label: "Slow & Eerie", pitch: 0.2, rate: 0.6 },
-  "fast-robot": { label: "Fast Robot",   pitch: 0.8, rate: 1.4 },
-  alien:        { label: "Alien",        pitch: 1.8, rate: 0.75 },
+  "fast-robot": { label: "Fast Robot", pitch: 0.8, rate: 1.4 },
+  alien: { label: "Alien", pitch: 1.8, rate: 0.75 },
 };
 
 export function ProjectWorkspace({ project: initial }: { project: Project }) {
@@ -290,7 +293,10 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
 
   // Reset to "normal" when the current preset is no longer available
   useEffect(() => {
-    if (shownPresets.length > 0 && !shownPresets.includes(selectedVoicePreset)) {
+    if (
+      shownPresets.length > 0 &&
+      !shownPresets.includes(selectedVoicePreset)
+    ) {
       setSelectedVoicePreset("normal");
     }
   }, [shownPresets]);
@@ -889,25 +895,25 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
                 {Object.entries(VOICE_PRESETS)
                   .filter(([key]) => shownPresets.includes(key))
                   .map(([key, preset]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => {
-                      if (previewState !== "idle") {
-                        window.speechSynthesis?.cancel();
-                        setPreviewState("idle");
-                      }
-                      setSelectedVoicePreset(key);
-                    }}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                      selectedVoicePreset === key
-                        ? "border-purple-500 text-purple-400 bg-purple-500/10"
-                        : "border-border text-muted-foreground hover:border-muted"
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        if (previewState !== "idle") {
+                          window.speechSynthesis?.cancel();
+                          setPreviewState("idle");
+                        }
+                        setSelectedVoicePreset(key);
+                      }}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        selectedVoicePreset === key
+                          ? "border-purple-500 text-purple-400 bg-purple-500/10"
+                          : "border-border text-muted-foreground hover:border-muted"
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
               </div>
             </div>
             <div className="flex gap-2">

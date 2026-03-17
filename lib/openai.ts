@@ -134,10 +134,11 @@ ${params.inspoSong ? `- Inspiration song: ${params.inspoSong} (style reference o
 ${params.keywords ? `- Words/themes to include naturally: ${params.keywords}` : ""}
 ${params.targetSection ? `\nREGENERATE ONLY the "${params.targetSection}" section. Keep all other sections unchanged. Existing context:\n${params.existingContext}` : ""}
 
-${params.rhyme
-  ? `!!!RHYME REQUIREMENT!!!
+${
+  params.rhyme
+    ? `!!!RHYME REQUIREMENT!!!
 You MUST make lines rhyme. Use AABB (lines 1+2 rhyme, lines 3+4 rhyme) or ABAB scheme throughout EVERY section. If two lines are supposed to rhyme and they do NOT end with rhyming words, your output is WRONG. Double-check every pair before returning.`
-  : `!!!NO-RHYME REQUIREMENT!!!
+    : `!!!NO-RHYME REQUIREMENT!!!
 You MUST NOT rhyme any lines. Every pair of adjacent lines must end with completely different, non-rhyming words. This is mandatory free-verse. If any two lines accidentally rhyme at the end, rewrite one of them before returning.`
 }
 
