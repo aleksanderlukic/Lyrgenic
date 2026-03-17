@@ -464,7 +464,10 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
 
   const copyAllToClipboard = () => {
     const text = sections
-      .map((s) => `[${s.section.toUpperCase()}]\n${s.lines.map((l) => l.text).join("\n")}`)
+      .map(
+        (s) =>
+          `[${s.section.toUpperCase()}]\n${s.lines.map((l) => l.text).join("\n")}`,
+      )
       .join("\n\n");
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
@@ -598,7 +601,11 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
                 : "border-border text-muted-foreground hover:text-foreground"
             }`}
           >
-            {copied ? <Check className="h-3 w-3" /> : <Clipboard className="h-3 w-3" />}
+            {copied ? (
+              <Check className="h-3 w-3" />
+            ) : (
+              <Clipboard className="h-3 w-3" />
+            )}
             {copied ? "Copied!" : "Copy all"}
           </button>
         </div>
@@ -635,7 +642,10 @@ export function LyricsEditor({ projectId, version, language, onSaved }: Props) {
           onDragStart={() => handleDragStart(si)}
           onDragOver={(e) => handleDragOver(e, si)}
           onDrop={() => handleDrop(si)}
-          onDragEnd={() => { setDragSrcIdx(null); setDragOverIdx(null); }}
+          onDragEnd={() => {
+            setDragSrcIdx(null);
+            setDragOverIdx(null);
+          }}
         >
           <div className="flex items-center justify-between mb-2 gap-1">
             {/* Drag handle */}

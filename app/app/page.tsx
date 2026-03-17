@@ -24,5 +24,7 @@ export default async function DashboardPage() {
     },
   });
 
-  return <DashboardClient initialProjects={JSON.parse(JSON.stringify(projects))} />;
+  return (
+    <DashboardClient initialProjects={JSON.parse(JSON.stringify(projects))} />
+  );
 }

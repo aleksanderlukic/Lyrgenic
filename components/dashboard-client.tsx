@@ -44,11 +44,18 @@ interface Project {
   createdAt: Date;
 }
 
-export function DashboardClient({ initialProjects }: { initialProjects: Project[] }) {
+export function DashboardClient({
+  initialProjects,
+}: {
+  initialProjects: Project[];
+}) {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
-  const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
+  const [renaming, setRenaming] = useState<{
+    id: string;
+    value: string;
+  } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -72,7 +79,9 @@ export function DashboardClient({ initialProjects }: { initialProjects: Project[
   async function handleDuplicate(id: string) {
     setMenuOpen(null);
     setLoading(id);
-    const res = await fetch(`/api/projects/${id}/duplicate`, { method: "POST" });
+    const res = await fetch(`/api/projects/${id}/duplicate`, {
+      method: "POST",
+    });
     if (res.ok) {
       const { id: newId } = await res.json();
       router.push(`/app/projects/${newId}`);
@@ -143,8 +152,10 @@ export function DashboardClient({ initialProjects }: { initialProjects: Project[
             >
               {/* Top row */}
               <div className="flex items-start justify-between">
-                <div className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center shrink-0 cursor-pointer"
-                  onClick={() => router.push(`/app/projects/${p.id}`)}>
+                <div
+                  className="w-10 h-10 rounded-lg gradient-bg flex items-center justify-center shrink-0 cursor-pointer"
+                  onClick={() => router.push(`/app/projects/${p.id}`)}
+                >
                   <Music2 className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -201,22 +212,34 @@ export function DashboardClient({ initialProjects }: { initialProjects: Project[
               {/* Name / rename input */}
               <div>
                 {renaming?.id === p.id ? (
-                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="flex items-center gap-1.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <input
                       autoFocus
                       value={renaming.value}
-                      onChange={(e) => setRenaming({ ...renaming, value: e.target.value })}
+                      onChange={(e) =>
+                        setRenaming({ ...renaming, value: e.target.value })
+                      }
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") handleRename(p.id, renaming.value);
+                        if (e.key === "Enter")
+                          handleRename(p.id, renaming.value);
                         if (e.key === "Escape") setRenaming(null);
                       }}
                       className="flex-1 rounded border border-purple-500/50 bg-background px-2 py-0.5 text-sm text-foreground outline-none focus:border-purple-500"
                     />
-                    <button onClick={() => handleRename(p.id, renaming.value)} disabled={isLoading}
-                      className="text-green-400 hover:text-green-300 disabled:opacity-50">
+                    <button
+                      onClick={() => handleRename(p.id, renaming.value)}
+                      disabled={isLoading}
+                      className="text-green-400 hover:text-green-300 disabled:opacity-50"
+                    >
                       <Check className="h-4 w-4" />
                     </button>
-                    <button onClick={() => setRenaming(null)} className="text-muted-foreground hover:text-foreground">
+                    <button
+                      onClick={() => setRenaming(null)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
                       <X className="h-4 w-4" />
                     </button>
                   </div>
@@ -230,10 +253,14 @@ export function DashboardClient({ initialProjects }: { initialProjects: Project[
                 )}
                 <div className="flex flex-wrap gap-2 mt-2">
                   {p.genre && (
-                    <span className="text-xs text-muted-foreground capitalize">{p.genre}</span>
+                    <span className="text-xs text-muted-foreground capitalize">
+                      {p.genre}
+                    </span>
                   )}
                   {p.vibe && (
-                    <span className="text-xs text-muted-foreground capitalize">· {p.vibe}</span>
+                    <span className="text-xs text-muted-foreground capitalize">
+                      · {p.vibe}
+                    </span>
                   )}
                 </div>
               </div>
