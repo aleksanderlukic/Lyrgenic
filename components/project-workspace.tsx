@@ -1,6 +1,6 @@
 "use client";
 // components/project-workspace.tsx – Main split workspace
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -98,6 +98,29 @@ const STATUS_BADGE: Record<
 
 type PanelView = "lyrics" | "editor" | "history" | "export";
 
+/** Static map: language name → BCP-47 code */
+const LANG_CODE: Record<string, string> = {
+  English: "en",
+  Swedish: "sv",
+  Spanish: "es",
+  French: "fr",
+  Portuguese: "pt",
+  German: "de",
+  Italian: "it",
+  Dutch: "nl",
+};
+
+/** All possible voice presets (pitch/rate adjustments on top of the voice) */
+const VOICE_PRESETS: Record<string, { label: string; pitch: number; rate: number }> = {
+  normal:       { label: "Normal",       pitch: 1.0, rate: 1.0 },
+  female:       { label: "Female",       pitch: 1.2, rate: 1.0 },
+  "deep-robot": { label: "Deep Robot",   pitch: 0.1, rate: 0.8 },
+  "high-robot": { label: "High Robot",   pitch: 2.0, rate: 1.0 },
+  "slow-robot": { label: "Slow & Eerie", pitch: 0.2, rate: 0.6 },
+  "fast-robot": { label: "Fast Robot",   pitch: 0.8, rate: 1.4 },
+  alien:        { label: "Alien",        pitch: 1.8, rate: 0.75 },
+};
+
 export function ProjectWorkspace({ project: initial }: { project: Project }) {
   const router = useRouter();
   const [project, setProject] = useState(initial);
@@ -149,18 +172,6 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
     return () =>
       window.speechSynthesis?.removeEventListener("voiceschanged", loadVoices);
   }, []);
-
-  /** Map project language names to BCP 47 language codes */
-  const LANG_CODE: Record<string, string> = {
-    English: "en",
-    Swedish: "sv",
-    Spanish: "es",
-    French: "fr",
-    Portuguese: "pt",
-    German: "de",
-    Italian: "it",
-    Dutch: "nl",
-  };
 
   // Assign a unique voice to each preset whenever voices or language changes
   useEffect(() => {
@@ -258,6 +269,32 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
       alien: grab([...femaleHints, ...maleHints]),
     });
   }, [availableVoices, project.language]);
+
+  // Only show presets that got a genuinely distinct voice (different voiceURI from normal).
+  // If a language only has 1 voice (e.g. Swedish "Alva"), only "Normal" is shown.
+  const shownPresets = useMemo(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const key of Object.keys(VOICE_PRESETS)) {
+      const uri = voiceMap[key]?.voiceURI ?? null;
+      if (key === "normal") {
+        result.push(key);
+        if (uri) seen.add(uri);
+      } else if (uri && !seen.has(uri)) {
+        result.push(key);
+        seen.add(uri);
+      }
+    }
+    return result;
+  }, [voiceMap]);
+
+  // Reset to "normal" when the current preset is no longer available
+  useEffect(() => {
+    if (shownPresets.length > 0 && !shownPresets.includes(selectedVoicePreset)) {
+      setSelectedVoicePreset("normal");
+    }
+  }, [shownPresets]);
+
   const [statusMsg, setStatusMsg] = useState("");
 
   const latestVersion = project.lyricsVersions[0] ?? null;
@@ -386,20 +423,6 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
       .filter(Boolean)
       .join(" ... ");
   }
-
-  // Voice presets: name → { pitch, rate }
-  const VOICE_PRESETS: Record<
-    string,
-    { label: string; pitch: number; rate: number }
-  > = {
-    normal: { label: "Normal", pitch: 1.0, rate: 1.0 },
-    female: { label: "Female", pitch: 1.2, rate: 1.0 },
-    "deep-robot": { label: "Deep Robot", pitch: 0.1, rate: 0.8 },
-    "high-robot": { label: "High Robot", pitch: 2.0, rate: 1.0 },
-    "slow-robot": { label: "Slow & Eerie", pitch: 0.2, rate: 0.6 },
-    "fast-robot": { label: "Fast Robot", pitch: 0.8, rate: 1.4 },
-    alien: { label: "Alien", pitch: 1.8, rate: 0.75 },
-  };
 
   function handlePreviewPlay() {
     if (!window.speechSynthesis) {
@@ -858,7 +881,14 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground/70">Voice style</p>
               <div className="flex flex-wrap gap-1.5">
-                {Object.entries(VOICE_PRESETS).map(([key, preset]) => (
+                {shownPresets.length <= 1 && (
+                  <p className="text-xs text-muted-foreground/50 italic">
+                    Only one voice available for this language.
+                  </p>
+                )}
+                {Object.entries(VOICE_PRESETS)
+                  .filter(([key]) => shownPresets.includes(key))
+                  .map(([key, preset]) => (
                   <button
                     key={key}
                     type="button"

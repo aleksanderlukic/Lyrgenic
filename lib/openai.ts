@@ -132,8 +132,14 @@ Song preferences:
 ${params.inspoArtist ? `- Inspiration artist: ${params.inspoArtist} (style reference only)` : ""}
 ${params.inspoSong ? `- Inspiration song: ${params.inspoSong} (style reference only)` : ""}
 ${params.keywords ? `- Words/themes to include naturally: ${params.keywords}` : ""}
-- Rhyme style: ${params.rhyme ? "Write lyrics with natural and smooth rhyming, keeping the meaning, flow, and emotion strong. Avoid forced or childish rhymes." : "Write lyrics naturally with good flow and emotion, without focusing on rhyming."}
 ${params.targetSection ? `\nREGENERATE ONLY the "${params.targetSection}" section. Keep all other sections unchanged. Existing context:\n${params.existingContext}` : ""}
+
+${params.rhyme
+  ? `!!!RHYME REQUIREMENT!!!
+You MUST make lines rhyme. Use AABB (lines 1+2 rhyme, lines 3+4 rhyme) or ABAB scheme throughout EVERY section. If two lines are supposed to rhyme and they do NOT end with rhyming words, your output is WRONG. Double-check every pair before returning.`
+  : `!!!NO-RHYME REQUIREMENT!!!
+You MUST NOT rhyme any lines. Every pair of adjacent lines must end with completely different, non-rhyming words. This is mandatory free-verse. If any two lines accidentally rhyme at the end, rewrite one of them before returning.`
+}
 
 Return ONLY valid JSON matching the schema.`;
 
@@ -209,11 +215,12 @@ export async function regenerateLine(opts: {
 Context (surrounding lines):
 ${context}
 
-Style: Genre=${opts.genre ?? "any"}, Vibe=${opts.vibe ?? "any"}, Language=${opts.language ?? "English"}, Clean=${!opts.isExplicit}, Rhyme=${opts.rhyme ? "yes" : "no"}.
+Style: Genre=${opts.genre ?? "any"}, Vibe=${opts.vibe ?? "any"}, Language=${opts.language ?? "English"}, Clean=${!opts.isExplicit}.
+Rhyme rule: ${opts.rhyme ? "REQUIRED — the new line MUST end-rhyme with one of the adjacent lines (AABB or ABAB). Rhyming at the end of the line is mandatory." : "FORBIDDEN — the new line must NOT end-rhyme with any surrounding line. This is free verse; no end-rhymes allowed."}.
 
 Rules:
 - Write ORIGINAL lyrics only.
-- Each option must fit naturally with the surrounding lines in rhythm, rhyme (if enabled), and meaning.
+- Each option must fit naturally with the surrounding lines in rhythm and meaning.
 - Provide exactly 3 distinct alternatives with different creative approaches.
 - Return ONLY valid JSON: { "lines": ["option 1", "option 2", "option 3"] }`;
 
