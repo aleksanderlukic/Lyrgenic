@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getProjectWithAccess } from "@/lib/project-access";
 
 export async function GET(
   _req: Request,
@@ -12,19 +13,10 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const project = await prisma.project.findUnique({
-    where: { id },
-    include: {
-      lyricsVersions: {
-        orderBy: { versionNumber: "desc" },
-      },
-    },
-  });
-
-  if (!project)
+  const access = await getProjectWithAccess(id, session.user.id);
+  if (!access)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (project.userId !== session.user.id)
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { project } = access;
 
   return NextResponse.json(project);
 }
@@ -38,11 +30,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const project = await prisma.project.findUnique({ where: { id } });
-  if (!project)
+  const access = await getProjectWithAccess(id, session.user.id);
+  if (!access)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (project.userId !== session.user.id)
+  // Only owner can change project settings
+  if (!access.isOwner)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { project } = access;
 
   const body = await req.json();
   const updated = await prisma.project.update({

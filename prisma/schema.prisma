@@ -74,6 +74,7 @@ model User {
   sessions       Session[]
   projects       Project[]
   generationLogs GenerationLog[]
+  collaborations ProjectCollaborator[]
 }
 
 // ─── Project ──────────────────────────────────────────────────────────
@@ -105,6 +106,7 @@ model Project {
   inspoSong        String?
   keywords         String?    @db.Text
   shareToken       String?    @unique  // read-only share link token
+  editToken        String?    @unique  // edit-access invite token
   status           String     @default("created") // created | analyzing | ready | generating | done | error
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
@@ -112,6 +114,21 @@ model Project {
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   lyricsVersions  LyricsVersion[]
   generationLogs  GenerationLog[]
+  collaborators   ProjectCollaborator[]
+}
+
+// ─── ProjectCollaborator ─────────────────────────────────────────────
+
+model ProjectCollaborator {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  addedAt   DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
 }
 
 // ─── LyricsVersion ────────────────────────────────────────────────────

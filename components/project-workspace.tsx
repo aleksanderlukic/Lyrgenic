@@ -30,6 +30,7 @@ import {
   Copy,
   Check,
   X,
+  Users2,
 } from "lucide-react";
 
 interface LyricsLine {
@@ -78,7 +79,11 @@ interface Project {
   audioOriginalKey: string | null;
   youtubeUrl: string | null;
   shareToken: string | null;
+  editToken: string | null;
   lyricsVersions: LyricsVersion[];
+  collaborators?: {
+    user: { id: string; name: string | null; email: string | null };
+  }[];
 }
 
 const STATUS_BADGE: Record<
@@ -142,6 +147,15 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
   );
   const [shareCopied, setShareCopied] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
+  const [editToken, setEditToken] = useState<string | null>(
+    initial.editToken ?? null,
+  );
+  const [editCopied, setEditCopied] = useState(false);
+  const [editInviteLoading, setEditInviteLoading] = useState(false);
+  const [collabCount, setCollabCount] = useState(
+    initial.collaborators?.length ?? 0,
+  );
+  const [newVersionBanner, setNewVersionBanner] = useState(false);
   const [inspirationOpen, setInspirationOpen] = useState(false);
   const [inspirationLoading, setInspirationLoading] = useState(false);
   const [inspirationData, setInspirationData] = useState<{
@@ -481,6 +495,25 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
     return m?.[1] ?? null;
   }
 
+  // Live-sync: poll for new versions every 5s when collaborators exist
+  useEffect(() => {
+    if (!collabCount && !editToken) return; // no collaborators, no need to poll
+    const interval = setInterval(async () => {
+      const res = await fetch(`/api/projects/${project.id}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const latestRemote = data.lyricsVersions?.[0];
+      const latestLocal = project.lyricsVersions[0];
+      if (latestRemote && latestRemote.id !== latestLocal?.id) {
+        setProject(data);
+        setCollabCount(data.collaborators?.length ?? 0);
+        setNewVersionBanner(true);
+        setTimeout(() => setNewVersionBanner(false), 6000);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [project.id, project.lyricsVersions, collabCount, editToken]);
+
   // Tempo-sync: pulse on each beat when beat file is playing
   useEffect(() => {
     if (beatPlaying && project.bpm) {
@@ -497,6 +530,31 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
       if (beatPulseRef.current) clearInterval(beatPulseRef.current);
     };
   }, [beatPlaying, project.bpm]);
+
+  async function handleCollabInvite() {
+    setEditInviteLoading(true);
+    try {
+      let token = editToken;
+      if (!token) {
+        const res = await fetch(`/api/projects/${project.id}/edit-invite`, {
+          method: "POST",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          token = data.editToken;
+          setEditToken(token);
+        }
+      }
+      if (token) {
+        const url = `${window.location.origin}/collab/${token}`;
+        await navigator.clipboard.writeText(url);
+        setEditCopied(true);
+        setTimeout(() => setEditCopied(false), 2500);
+      }
+    } finally {
+      setEditInviteLoading(false);
+    }
+  }
 
   async function handleShare() {
     setShareLoading(true);
@@ -595,6 +653,29 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
           <Button
             variant="outline"
             size="sm"
+            loading={editInviteLoading}
+            onClick={handleCollabInvite}
+            title="Invite others to edit this project"
+            className={`gap-1.5 transition-colors ${
+              editCopied
+                ? "border-emerald-500 text-emerald-400 bg-emerald-500/10"
+                : ""
+            }`}
+          >
+            {editCopied ? (
+              <Check className="h-3.5 w-3.5" />
+            ) : (
+              <Users2 className="h-3.5 w-3.5" />
+            )}
+            {editCopied
+              ? "Link copied!"
+              : collabCount > 0
+                ? `Collaborators (${collabCount})`
+                : "Invite editors"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             loading={inspirationLoading}
             onClick={handleInspire}
             className={`gap-1.5 transition-colors ${
@@ -669,6 +750,21 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
           </Button>
         </div>
       </div>
+
+      {/* New version banner – shown when a collaborator saved */}
+      {newVersionBanner && (
+        <div className="mb-4 flex items-center justify-between gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-4 py-2.5 text-sm text-emerald-400">
+          <span>
+            ✓ A collaborator saved a new version — editor has been updated.
+          </span>
+          <button
+            onClick={() => setNewVersionBanner(false)}
+            className="text-emerald-400/60 hover:text-emerald-400"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {inspirationOpen && inspirationData && (
         <div className="mb-4 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-4 space-y-4">

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateLyrics, LyricsOutput } from "@/lib/openai";
+import { getProjectWithAccess } from "@/lib/project-access";
 import { z } from "zod";
 
 const Schema = z.object({
@@ -22,16 +23,10 @@ export async function POST(
     const userId = session.user.id;
     const { id } = await params;
 
-    const project = await prisma.project.findUnique({
-      where: { id },
-      include: {
-        lyricsVersions: { orderBy: { versionNumber: "desc" } },
-      },
-    });
-    if (!project)
+    const access = await getProjectWithAccess(id, userId);
+    if (!access)
       return NextResponse.json({ error: "Not found" }, { status: 404 });
-    if (project.userId !== userId)
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const { project } = access;
 
     const body = await req.json();
     const { sectionName, versionId } = Schema.parse(body);
