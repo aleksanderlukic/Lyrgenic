@@ -217,6 +217,24 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
   const [settingsSaveError, setSettingsSaveError] = useState<string | null>(
     null,
   );
+  const [durationEditing, setDurationEditing] = useState(false);
+  const [durationDraft, setDurationDraft] = useState("");
+
+  async function handleSaveDuration() {
+    const secs = parseFloat(durationDraft);
+    if (!secs || secs <= 0) return;
+    const res = await fetch(`/api/projects/${project.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ durationSeconds: secs }),
+    });
+    if (res.ok) {
+      setProject((prev) => ({ ...prev, durationSeconds: secs }));
+      setDurationEditing(false);
+      // Re-run analysis so sections are rebuilt with the new duration
+      handleAnalyse();
+    }
+  }
 
   async function saveProjectSettings() {
     setSettingsSaving(true);
@@ -1031,6 +1049,19 @@ export function ProjectWorkspace({ project: initial }: { project: Project }) {
             analysis={project.analysisJson as any}
             bpm={project.bpm ?? undefined}
             durationSeconds={project.durationSeconds ?? undefined}
+            durationEditing={durationEditing}
+            durationDraft={durationDraft}
+            onEditDuration={() => {
+              setDurationDraft(
+                project.durationSeconds
+                  ? String(Math.round(project.durationSeconds))
+                  : "",
+              );
+              setDurationEditing(true);
+            }}
+            onDurationDraftChange={setDurationDraft}
+            onSaveDuration={handleSaveDuration}
+            onCancelDuration={() => setDurationEditing(false)}
           />
 
           {/* Project settings (collapsible) */}

@@ -5,7 +5,7 @@ import { Upload, CheckCircle2, AlertCircle, Music2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  onUploaded: (key: string, mime: string) => void;
+  onUploaded: (key: string, mime: string, durationSeconds?: number) => void;
 }
 
 const ALLOWED = [
@@ -26,7 +26,35 @@ export function AudioUploader({ onUploaded }: Props) {
   const [filename, setFilename] = useState("");
   const [progress, setProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
+  const [detectedDuration, setDetectedDuration] = useState<number | undefined>(
+    undefined,
+  );
   const inputRef = useRef<HTMLInputElement>(null);
+
+  /** Read audio duration in the browser immediately from the local File object. */
+  async function readBrowserDuration(file: File): Promise<number | undefined> {
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => resolve(undefined), 5000);
+      try {
+        const objectUrl = URL.createObjectURL(file);
+        const audio = new Audio(objectUrl);
+        audio.onloadedmetadata = () => {
+          clearTimeout(timeout);
+          URL.revokeObjectURL(objectUrl);
+          const d = audio.duration;
+          resolve(isFinite(d) && d > 0 ? d : undefined);
+        };
+        audio.onerror = () => {
+          clearTimeout(timeout);
+          URL.revokeObjectURL(objectUrl);
+          resolve(undefined);
+        };
+      } catch {
+        clearTimeout(timeout);
+        resolve(undefined);
+      }
+    });
+  }
 
   const upload = useCallback(
     async (file: File) => {
@@ -46,8 +74,12 @@ export function AudioUploader({ onUploaded }: Props) {
       setProgress(0);
       setErrorMsg("");
 
+      // 1. Read duration from browser before upload starts
+      const durationSeconds = await readBrowserDuration(file);
+      setDetectedDuration(durationSeconds);
+
       try {
-        // 1. Get presigned URL
+        // 2. Get presigned URL
         const presignRes = await fetch("/api/uploads/presign", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -60,7 +92,7 @@ export function AudioUploader({ onUploaded }: Props) {
         const { url, key, contentType } = await presignRes.json();
         if (!presignRes.ok) throw new Error(url?.error ?? "Presign failed");
 
-        // 2. Upload directly to S3
+        // 3. Upload directly to S3
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open("PUT", url);
@@ -79,7 +111,7 @@ export function AudioUploader({ onUploaded }: Props) {
 
         setStatus("done");
         setProgress(100);
-        onUploaded(key, file.type);
+        onUploaded(key, file.type, durationSeconds);
       } catch (e: any) {
         setErrorMsg(e.message ?? "Upload failed");
         setStatus("error");
@@ -160,7 +192,17 @@ export function AudioUploader({ onUploaded }: Props) {
         <>
           <CheckCircle2 className="h-10 w-10 text-green-400" />
           <p className="font-medium text-green-300">{filename}</p>
-          <p className="text-xs text-muted-foreground">Uploaded successfully</p>
+          {detectedDuration ? (
+            <p className="text-xs text-muted-foreground">
+              {Math.floor(detectedDuration / 60)}:
+              {String(Math.round(detectedDuration % 60)).padStart(2, "0")}{" "}
+              detected
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Uploaded successfully
+            </p>
+          )}
         </>
       )}
 

@@ -43,13 +43,15 @@ export async function runAnalysis(data: { projectId: string; userId: string }) {
     }
 
     if (!localPath) {
-      // YouTube or no audio: use duration from project if set, or default 180s
+      // YouTube or no audio: use provided duration or default to 180s (3:00)
       const duration = project.durationSeconds ?? 180;
       const analysisJson = {
         bpm: project.bpm ?? null,
         durationSeconds: duration,
         sections: buildDefaultSectionsRaw(duration),
-        energySummary: "No audio file – using placeholder analysis.",
+        energySummary: project.durationSeconds
+          ? `No audio file – structure based on provided duration of ${duration}s.`
+          : "No audio file – using default 3:00 structure.",
       };
       await prisma.project.update({
         where: { id: projectId },
@@ -58,7 +60,11 @@ export async function runAnalysis(data: { projectId: string; userId: string }) {
       return;
     }
 
-    const analysis = await analyseAudio(localPath, project.bpm ?? undefined);
+    const analysis = await analyseAudio(
+      localPath,
+      project.bpm ?? undefined,
+      project.durationSeconds ?? undefined,
+    );
 
     await prisma.project.update({
       where: { id: projectId },

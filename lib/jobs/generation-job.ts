@@ -35,6 +35,28 @@ export async function runGeneration(data: {
       rhyme: project.rhyme,
     });
 
+    // Clamp every line timestamp to [0, durationSeconds] so lyrics never
+    // exceed the actual beat length or start before it.
+    const maxSec =
+      (analysis?.durationSeconds as number | null | undefined) ??
+      project.durationSeconds ??
+      null;
+    if (maxSec && maxSec > 0) {
+      output.lyrics = output.lyrics.map((section) => ({
+        ...section,
+        lines: section.lines.map((line) => ({
+          ...line,
+          timeSec: Math.min(Math.max(0, line.timeSec), maxSec),
+        })),
+      }));
+      // Also clamp structure entries
+      output.structure = output.structure.map((s) => ({
+        ...s,
+        startSec: Math.min(Math.max(0, s.startSec), maxSec),
+        endSec: Math.min(Math.max(0, s.endSec), maxSec),
+      }));
+    }
+
     // Find next version number
     const versionCount = await prisma.lyricsVersion.count({
       where: { projectId },

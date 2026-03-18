@@ -77,7 +77,10 @@ Rules:
 1. Write ORIGINAL lyrics only. Do NOT copy or paraphrase existing songs.
 2. When user provides an inspiration artist, treat it as a style reference (genre, energy, tone) ONLY. Never mimic their identity, catchphrases, or specific lyrics.
 3. Always return valid JSON matching the schema exactly.
-4. Timestamps must be consistent with the audio structure provided.
+4. TIMING IS CRITICAL: Every timeSec value in "lyrics" MUST be within [0, durationSeconds]. NEVER use a timeSec greater than the song's total duration. NEVER use negative values.
+5. Each section's lines must have timeSec values that fall within that section's startSec–endSec window from the provided structure.
+6. Distribute lines evenly across the section duration. Calculate seconds-per-line as (endSec - startSec) / lineCount and increment timeSec by that amount for each line.
+7. The last line of the song MUST have timeSec strictly less than durationSeconds.
 
 Output schema:
 {
@@ -119,7 +122,7 @@ export async function generateLyrics(params: GenerateLyricsParams): Promise<{
   const userPrompt = `
 Beat analysis:
 - BPM: ${params.bpm ?? "unknown"}
-- Duration: ${params.durationSeconds ? `${params.durationSeconds.toFixed(1)}s` : "unknown"}
+- Duration: ${params.durationSeconds ? `${params.durationSeconds.toFixed(1)}s (HARD LIMIT: no timeSec may exceed ${params.durationSeconds.toFixed(1)})` : "unknown (keep timestamps reasonable)"}
 - Sections:
 ${sectionsList ?? "  (use default structure)"}
 

@@ -53,6 +53,9 @@ export async function PATCH(
       inspoSong: body.inspoSong,
       keywords: body.keywords,
       bpm: body.bpm,
+      ...(body.durationSeconds !== undefined && {
+        durationSeconds: body.durationSeconds,
+      }),
     },
   });
 

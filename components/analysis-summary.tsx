@@ -1,8 +1,7 @@
 "use client";
 // components/analysis-summary.tsx
 import { formatTime } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Activity, Music2, Clock } from "lucide-react";
+import { Activity, Music2, Clock, Pencil, Check, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 
 interface Section {
@@ -21,6 +20,13 @@ interface Props {
   } | null;
   bpm?: number;
   durationSeconds?: number;
+  // Inline duration editing
+  durationEditing?: boolean;
+  durationDraft?: string;
+  onEditDuration?: () => void;
+  onDurationDraftChange?: (v: string) => void;
+  onSaveDuration?: () => void;
+  onCancelDuration?: () => void;
 }
 
 const SECTION_COLORS: Record<string, string> = {
@@ -32,7 +38,17 @@ const SECTION_COLORS: Record<string, string> = {
   break: "bg-green-500/20 text-green-300",
 };
 
-export function AnalysisSummary({ analysis, bpm, durationSeconds }: Props) {
+export function AnalysisSummary({
+  analysis,
+  bpm,
+  durationSeconds,
+  durationEditing,
+  durationDraft,
+  onEditDuration,
+  onDurationDraftChange,
+  onSaveDuration,
+  onCancelDuration,
+}: Props) {
   const effectiveBpm = analysis?.bpm ?? bpm;
   const effectiveDuration = analysis?.durationSeconds ?? durationSeconds;
   const sections = analysis?.sections ?? [];
@@ -61,14 +77,64 @@ export function AnalysisSummary({ analysis, bpm, durationSeconds }: Props) {
             </div>
           )}
           {effectiveDuration && (
-            <div className="rounded-lg bg-muted p-3 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-              <div>
-                <p className="text-xs text-muted-foreground">Duration</p>
-                <p className="font-bold text-lg text-foreground">
-                  {formatTime(effectiveDuration)}
-                </p>
-              </div>
+            <div className="rounded-lg bg-muted p-3 flex items-center gap-2 group relative">
+              <Clock className="h-4 w-4 text-blue-500 dark:text-blue-400 shrink-0" />
+              {durationEditing ? (
+                <div className="flex items-center gap-1.5 flex-1">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Duration</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <input
+                        autoFocus
+                        type="number"
+                        min={5}
+                        max={600}
+                        value={durationDraft}
+                        onChange={(e) =>
+                          onDurationDraftChange?.(e.target.value)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") onSaveDuration?.();
+                          if (e.key === "Escape") onCancelDuration?.();
+                        }}
+                        placeholder="seconds"
+                        className="w-20 rounded border border-blue-500/50 bg-background px-1.5 py-0.5 text-sm font-bold text-foreground outline-none focus:border-blue-500"
+                      />
+                      <span className="text-xs text-muted-foreground">s</span>
+                      <button
+                        onClick={onSaveDuration}
+                        className="text-green-400 hover:text-green-300 ml-1"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={onCancelDuration}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Duration</p>
+                    <p className="font-bold text-lg text-foreground">
+                      {formatTime(effectiveDuration)}
+                    </p>
+                  </div>
+                  {onEditDuration && (
+                    <button
+                      onClick={onEditDuration}
+                      title="Set actual beat duration"
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground transition-all"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

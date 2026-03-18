@@ -70,8 +70,10 @@ export function CreateProjectWizard() {
     sourceType: "upload" as "upload" | "youtube",
     audioKey: "",
     audioMime: "",
+    audioDuration: undefined as number | undefined,
     youtubeUrl: "",
     bpm: "",
+    manualDuration: "",
   });
 
   // Step 2 data
@@ -112,6 +114,11 @@ export function CreateProjectWizard() {
           audioMime: step1.audioMime || null,
           youtubeUrl: step1.youtubeUrl || null,
           bpm: step1.bpm ? parseFloat(step1.bpm) : undefined,
+          durationSeconds:
+            step1.audioDuration ??
+            (step1.manualDuration
+              ? parseFloat(step1.manualDuration)
+              : undefined),
           genre: step2.genre,
           vibe: step2.vibe,
           language: step2.language,
@@ -211,8 +218,13 @@ export function CreateProjectWizard() {
 
             {step1.sourceType === "upload" ? (
               <AudioUploader
-                onUploaded={(key, mime) =>
-                  setStep1((p) => ({ ...p, audioKey: key, audioMime: mime }))
+                onUploaded={(key, mime, dur) =>
+                  setStep1((p) => ({
+                    ...p,
+                    audioKey: key,
+                    audioMime: mime,
+                    audioDuration: dur,
+                  }))
                 }
               />
             ) : (
@@ -222,18 +234,42 @@ export function CreateProjectWizard() {
               />
             )}
 
-            <div className="space-y-1.5">
-              <Label>BPM (optional – helps with lyric rhythm)</Label>
-              <Input
-                type="number"
-                placeholder="e.g. 140"
-                min={20}
-                max={400}
-                value={step1.bpm}
-                onChange={(e) =>
-                  setStep1((p) => ({ ...p, bpm: e.target.value }))
-                }
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>BPM (optional)</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 140"
+                  min={20}
+                  max={400}
+                  value={step1.bpm}
+                  onChange={(e) =>
+                    setStep1((p) => ({ ...p, bpm: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>
+                  {step1.audioDuration
+                    ? `Duration: ${Math.floor(step1.audioDuration / 60)}:${String(Math.round(step1.audioDuration % 60)).padStart(2, "0")} (auto)`
+                    : "Duration in seconds (optional)"}
+                </Label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 187"
+                  min={5}
+                  max={600}
+                  value={
+                    step1.audioDuration
+                      ? String(Math.round(step1.audioDuration))
+                      : step1.manualDuration
+                  }
+                  disabled={!!step1.audioDuration}
+                  onChange={(e) =>
+                    setStep1((p) => ({ ...p, manualDuration: e.target.value }))
+                  }
+                />
+              </div>
             </div>
           </CardContent>
         </Card>

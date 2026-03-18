@@ -20,6 +20,7 @@ const CreateSchema = z.object({
   inspoSong: z.string().max(200).optional(),
   keywords: z.string().max(500).optional(),
   bpm: z.number().min(20).max(400).optional(),
+  durationSeconds: z.number().positive().max(3600).optional(),
 });
 
 export async function GET(_req: Request) {
@@ -101,6 +102,7 @@ export async function POST(req: Request) {
       inspoSong: result.data.inspoSong,
       keywords: result.data.keywords,
       bpm: result.data.bpm,
+      durationSeconds: result.data.durationSeconds ?? null,
     },
   });
 
